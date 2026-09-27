@@ -2,8 +2,6 @@ import django.contrib.gis.db.models.fields
 import django.db.models.deletion
 import uuid
 from django.db import migrations, models
-
-
 class Migration(migrations.Migration):
 
     initial = True

@@ -11,8 +11,8 @@ DEBUG = env.bool('DEBUG', default=False)
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Point GeoDjango at the GDAL/GEOS DLLs installed alongside PostGIS
-GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\17\bin\libgdal-35.dll'
-GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\17\bin\libgeos_c.dll'
+GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
+GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
 
 INSTALLED_APPS = [
     'django.contrib.admin',
