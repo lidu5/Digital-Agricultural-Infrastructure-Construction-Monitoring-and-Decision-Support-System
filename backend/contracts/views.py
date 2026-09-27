@@ -1,9 +1,22 @@
-# pyright: reportMissingModuleSource=false
 from django.shortcuts import get_object_or_404, render
 from rest_framework import viewsets
 
-from .models import Contract
-from .serializers import ContractSerializer
+from .models import (
+    Contract,
+    VariationOrder,
+    ExtensionOfTime,
+    IPC,
+    Claim,
+)
+
+from .serializers import (
+    ContractSerializer,
+    VariationOrderSerializer,
+    ExtensionOfTimeSerializer,
+    IPCSerializer,
+    ClaimSerializer,
+)
+
 
 def contract_detail(request, contract_id):
 
@@ -35,3 +48,23 @@ def contract_detail(request, contract_id):
 class ContractViewSet(viewsets.ModelViewSet):
     queryset = Contract.objects.all()
     serializer_class = ContractSerializer
+
+
+class VariationOrderViewSet(viewsets.ModelViewSet):
+    queryset = VariationOrder.objects.all()
+    serializer_class = VariationOrderSerializer
+
+
+class ExtensionOfTimeViewSet(viewsets.ModelViewSet):
+    queryset = ExtensionOfTime.objects.all()
+    serializer_class = ExtensionOfTimeSerializer
+
+
+class IPCViewSet(viewsets.ModelViewSet):
+    queryset = IPC.objects.all()
+    serializer_class = IPCSerializer
+
+
+class ClaimViewSet(viewsets.ModelViewSet):
+    queryset = Claim.objects.all()
+    serializer_class = ClaimSerializer

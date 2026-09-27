@@ -9,9 +9,6 @@ from .models import (
 )
 
 
-# ---------------------------------------------------------
-# Variation Order Serializer
-# ---------------------------------------------------------
 
 class VariationOrderSerializer(serializers.ModelSerializer):
 
@@ -32,10 +29,6 @@ class VariationOrderSerializer(serializers.ModelSerializer):
         ]
 
 
-# ---------------------------------------------------------
-# Extension of Time Serializer
-# ---------------------------------------------------------
-
 class ExtensionOfTimeSerializer(serializers.ModelSerializer):
 
     class Meta:
@@ -53,11 +46,6 @@ class ExtensionOfTimeSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "eot_id",
         ]
-
-
-# ---------------------------------------------------------
-# IPC / Payment Certificate Serializer
-# ---------------------------------------------------------
 
 class IPCSerializer(serializers.ModelSerializer):
 
@@ -81,9 +69,7 @@ class IPCSerializer(serializers.ModelSerializer):
         ]
 
 
-# ---------------------------------------------------------
-# Claim Serializer
-# ---------------------------------------------------------
+
 
 class ClaimSerializer(serializers.ModelSerializer):
 
@@ -104,9 +90,7 @@ class ClaimSerializer(serializers.ModelSerializer):
         ]
 
 
-# ---------------------------------------------------------
-# Contract Serializer
-# ---------------------------------------------------------
+
 
 class ContractSerializer(serializers.ModelSerializer):
 
