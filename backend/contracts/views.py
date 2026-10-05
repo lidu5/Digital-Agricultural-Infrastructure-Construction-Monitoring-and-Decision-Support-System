@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404, render
-from rest_framework import viewsets
+from rest_framework import viewsets, permissions
 
 from .models import (
     Contract,
@@ -8,6 +8,8 @@ from .models import (
     IPC,
     Claim,
 )
+
+from .permissions import ContractScopedPermission
 
 from .serializers import (
     ContractSerializer,
@@ -46,25 +48,62 @@ def contract_detail(request, contract_id):
 
 
 class ContractViewSet(viewsets.ModelViewSet):
-    queryset = Contract.objects.all()
     serializer_class = ContractSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Contract.objects.select_related('project', 'contractor_org').all()
+
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            qs = qs.filter(project_id=project_id)
+
+        if user.role == 'regional_manager':
+            # Regional managers can only see contracts for projects in their region
+            return qs.filter(project__region=user.region)
+        
+        # Admins and national viewers see all contracts
+        return qs
 
 
-class VariationOrderViewSet(viewsets.ModelViewSet):
+class ContractChildViewSet(viewsets.ModelViewSet):
+    """
+    Base for the lifecycle viewsets (VO / EoT / IPC / Claim).
+    Honors ?contract=<id> and keeps regional managers inside their region,
+    mirroring ContractViewSet.get_queryset.
+    """
+    permission_classes = [ContractScopedPermission]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = self.queryset.select_related('contract', 'contract__project').all()
+
+        contract_id = self.request.query_params.get('contract')
+        if contract_id:
+            qs = qs.filter(contract_id=contract_id)
+
+        if user.role == 'regional_manager':
+            qs = qs.filter(contract__project__region=user.region)
+
+        return qs
+
+
+class VariationOrderViewSet(ContractChildViewSet):
     queryset = VariationOrder.objects.all()
     serializer_class = VariationOrderSerializer
 
 
-class ExtensionOfTimeViewSet(viewsets.ModelViewSet):
+class ExtensionOfTimeViewSet(ContractChildViewSet):
     queryset = ExtensionOfTime.objects.all()
     serializer_class = ExtensionOfTimeSerializer
 
 
-class IPCViewSet(viewsets.ModelViewSet):
+class IPCViewSet(ContractChildViewSet):
     queryset = IPC.objects.all()
     serializer_class = IPCSerializer
 
 
-class ClaimViewSet(viewsets.ModelViewSet):
+class ClaimViewSet(ContractChildViewSet):
     queryset = Claim.objects.all()
     serializer_class = ClaimSerializer

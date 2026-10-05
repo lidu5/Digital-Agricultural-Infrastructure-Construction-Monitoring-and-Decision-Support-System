@@ -94,6 +94,9 @@ class ClaimSerializer(serializers.ModelSerializer):
 
 class ContractSerializer(serializers.ModelSerializer):
 
+    project_code = serializers.CharField(source="project.project_code", read_only=True)
+    contractor_org_name = serializers.CharField(source="contractor_org.name", read_only=True)
+
     # Contract lifecycle information
     variation_orders = VariationOrderSerializer(
         many=True,
@@ -124,13 +127,17 @@ class ContractSerializer(serializers.ModelSerializer):
 
             # Relationships
             "project",
+            "project_code",
             "contractor_org",
+            "contractor_org_name",
             "consultant_org",
 
             # Contract information
             "contract_number",
             "contract_amount",
             "revised_contract_amount",
+            "contract_quantity",
+            "quantity_unit",
 
             # Dates
             "contract_signing_date",
@@ -163,4 +170,8 @@ class ContractSerializer(serializers.ModelSerializer):
             "contract_id",
             "created_at",
             "updated_at",
+            # Computed from approved VariationOrders / ExtensionsOfTime —
+            # see contracts/signals.py. Not directly editable.
+            "revised_contract_amount",
+            "revised_completion_date",
         ]

@@ -14,15 +14,16 @@ class UserSerializer(serializers.ModelSerializer):
     them (password is write-only and goes through create_user() so it
     gets hashed, never stored as plain text).
     """
-    password = serializers.CharField(write_only=True, min_length=8)
+    password = serializers.CharField(write_only=True, min_length=8, required=False)
+    region_name = serializers.CharField(source='region.name', read_only=True)
 
     class Meta:
         model = User
         fields = [
-            'user_id', 'full_name', 'email', 'role', 'region',
+            'user_id', 'full_name', 'email', 'role', 'region', 'region_name',
             'is_active', 'password', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['user_id', 'created_at', 'updated_at']
+        read_only_fields = ['user_id', 'created_at', 'updated_at', 'region_name']
 
     def create(self, validated_data):
         password = validated_data.pop('password')

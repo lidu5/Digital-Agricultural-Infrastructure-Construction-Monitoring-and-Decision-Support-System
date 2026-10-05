@@ -50,6 +50,9 @@ class ProjectMilestoneViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = ProjectMilestone.objects.all()
+        project_id = self.request.query_params.get('project')
+        if project_id:
+            qs = qs.filter(project_id=project_id)
         if user.role == 'regional_manager':
             return qs.filter(project__region=user.region)
         return qs

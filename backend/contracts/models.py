@@ -39,6 +39,9 @@ class Contract(models.Model):
     contract_amount = models.DecimalField(max_digits=16, decimal_places=2)
     revised_contract_amount = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)
 
+    contract_quantity = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    quantity_unit = models.CharField(max_length=30, blank=True)
+
     contract_signing_date = models.DateField(null=True, blank=True)
     commencement_date = models.DateField(null=True, blank=True)
     original_completion_date = models.DateField(null=True, blank=True)

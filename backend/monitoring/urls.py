@@ -1,7 +1,9 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (
     ProblemCategoryViewSet, DocumentTypeViewSet, AlertTypeViewSet,
     ProgressRecordViewSet, IssueViewSet, DocumentViewSet, AlertViewSet,
+    NationalDashboardView,
 )
 
 router = DefaultRouter()
@@ -13,4 +15,6 @@ router.register('issues', IssueViewSet, basename='issue')
 router.register('documents', DocumentViewSet, basename='document')
 router.register('alerts', AlertViewSet, basename='alert')
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('national-dashboard/', NationalDashboardView.as_view(), name='national-dashboard'),
+] + router.urls

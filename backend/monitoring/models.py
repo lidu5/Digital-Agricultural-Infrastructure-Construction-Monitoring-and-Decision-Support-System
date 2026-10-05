@@ -9,6 +9,7 @@ so it sits last in INSTALLED_APPS with no circular-import risk.
 """
 
 import uuid
+from decimal import Decimal
 from django.db import models
 
 from projects.models import Project
@@ -98,7 +99,7 @@ class ProgressRecord(models.Model):
     @property
     def time_progress_pct(self):
         if self.total_duration_days:
-            return round(self.elapsed_duration_days / self.total_duration_days * 100, 2)
+            return round(Decimal(self.elapsed_duration_days or 0) / Decimal(self.total_duration_days) * 100, 2)
         return 0
 
     def __str__(self):

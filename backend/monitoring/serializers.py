@@ -35,6 +35,16 @@ class ProgressRecordSerializer(serializers.ModelSerializer):
         fields = '__all__'
         read_only_fields = ['record_id', 'created_at']
 
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        project = attrs.get('project', getattr(self.instance, 'project', None))
+        contract = attrs.get('contract', getattr(self.instance, 'contract', None))
+        if contract and project and contract.project_id != project.pk:
+            raise serializers.ValidationError(
+                {'contract': 'This contract does not belong to the selected project.'}
+            )
+        return attrs
+
 
 class IssueSerializer(serializers.ModelSerializer):
     class Meta:

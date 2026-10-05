@@ -10,7 +10,7 @@ from .views import (
 
 router = DefaultRouter()
 
-router.register(r"",ContractViewSet,basename="contract")
+router.register(r"contracts",ContractViewSet,basename="contract")
 
 router.register(r"variation-orders",VariationOrderViewSet,basename="variation-order")
 
