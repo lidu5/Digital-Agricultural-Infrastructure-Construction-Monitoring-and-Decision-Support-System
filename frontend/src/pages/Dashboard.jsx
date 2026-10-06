@@ -1,16 +1,25 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
-import { TrendingUp, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts'
 import api from '../api'
-import Card, { CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
+import { DashboardHero, StatCards } from '../components/dashboard/DashboardHero'
 
 const STATUS_COLORS = {
   on_track: '#16a34a',
   delayed: '#eab308',
   critical: '#dc2626',
   completed: '#2563eb',
+}
+
+const STATUS_LABELS = {
+  on_track: 'On track',
+  delayed: 'Delayed',
+  critical: 'Critical',
+  completed: 'Completed',
 }
 
 export default function Dashboard() {
@@ -56,146 +65,117 @@ export default function Dashboard() {
     return <div className="text-center py-12">Loading dashboard...</div>
   }
 
+  if (!stats) {
+    return <div className="text-center py-12">Could not load the dashboard. Please refresh.</div>
+  }
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+    <div>
+      <DashboardHero />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Total Projects</p>
-                <p className="text-3xl font-bold text-slate-900 mt-2">{stats.total}</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
+      <StatCards
+        total={stats.total}
+        onTrack={stats.onTrack}
+        delayed={stats.delayed}
+        critical={stats.critical}
+      />
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">On Track</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{stats.onTrack}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Delayed</p>
-                <p className="text-3xl font-bold text-yellow-600 mt-2">{stats.delayed}</p>
-              </div>
-              <Clock className="w-8 h-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600">Critical</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">{stats.critical}</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-red-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Status Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <div className="dss-grid-2">
+        <div className="dss-panel">
+          <div className="dss-panel-head">Project Status Distribution</div>
+          <div className="dss-panel-body">
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={stats.statusData}
+                  data={stats.statusData.map((d) => ({ ...d, label: STATUS_LABELS[d.name] || d.name }))}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={2}
                   dataKey="value"
+                  nameKey="label"
                 >
                   {stats.statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.name] || '#64748b'} />
                   ))}
                 </Pie>
                 <Tooltip />
+                <Legend />
               </PieChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Average Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="dss-panel">
+          <div className="dss-panel-head">Average Progress</div>
+          <div className="dss-panel-body">
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={[
-                { name: 'Physical', value: parseFloat(stats.avgPhysical) },
-                { name: 'Financial', value: parseFloat(stats.avgFinancial) },
-              ]}>
-                <CartesianGrid strokeDasharray="3 3" />
+              <BarChart
+                data={[
+                  { name: 'Physical', value: parseFloat(stats.avgPhysical) },
+                  { name: 'Financial', value: parseFloat(stats.avgFinancial) },
+                ]}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" />
-                <YAxis domain={[0, 100]} />
+                <YAxis domain={[0, 100]} unit="%" />
                 <Tooltip />
-                <Bar dataKey="value" fill="#3b82f6" />
+                <Bar dataKey="value" fill="#1b6b45" radius={[8, 8, 0, 0]} barSize={56} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Alerts</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="dss-panel" style={{ marginTop: 24 }}>
+        <div className="dss-panel-head">Recent Alerts</div>
+        <div className="dss-panel-body">
           {alerts.length === 0 ? (
             <p className="text-slate-500 text-sm">No recent alerts</p>
           ) : (
             <div className="space-y-3">
               {alerts.map((alert) => (
-                <div key={alert.alert_id} className="flex items-start justify-between border-b border-slate-100 pb-3 last:border-0">
+                <div
+                  key={alert.alert_id}
+                  className="flex items-start justify-between border-b border-slate-100 pb-3 last:border-0"
+                >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <Badge variant={
-                        alert.severity === 'critical' ? 'danger' :
-                        alert.severity === 'high' ? 'warning' :
-                        alert.severity === 'medium' ? 'info' : 'default'
-                      }>
+                      <Badge
+                        variant={
+                          alert.severity === 'critical' ? 'danger' :
+                          alert.severity === 'high' ? 'warning' :
+                          alert.severity === 'medium' ? 'info' : 'default'
+                        }
+                      >
                         {alert.severity}
                       </Badge>
-                      <span className="text-sm font-medium text-slate-900">{alert.alert_type_name || 'Alert'}</span>
+                      <span className="text-sm font-medium text-slate-900">
+                        {alert.alert_type_name || 'Alert'}
+                      </span>
                     </div>
                     <p className="text-sm text-slate-600 mt-1">{alert.details}</p>
                     <p className="text-xs text-slate-500 mt-1">
                       Project: {alert.project_code || alert.project}
                     </p>
                   </div>
-                  <span className="text-xs text-slate-500">{new Date(alert.triggered_date).toLocaleDateString()}</span>
+                  <span className="text-xs text-slate-500">
+                    {new Date(alert.triggered_date).toLocaleDateString()}
+                  </span>
                 </div>
               ))}
             </div>
           )}
-          <Link to="/alerts" className="text-sm text-blue-600 hover:text-blue-700 font-medium mt-4 inline-block">
+          <Link
+            to="/alerts"
+            className="text-sm font-medium mt-4 inline-block"
+            style={{ color: '#1b6b45' }}
+          >
             View all alerts →
           </Link>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

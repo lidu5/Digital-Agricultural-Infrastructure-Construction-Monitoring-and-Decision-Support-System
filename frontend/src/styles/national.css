@@ -1,0 +1,137 @@
+/* National View page. All classes start with nat- so nothing else is affected. */
+
+/* ---------- Summary strip ---------- */
+.nat-summary {
+  border-radius: 24px; padding: 28px 32px; color: #fff;
+  background:
+    repeating-linear-gradient(100deg, transparent 0 26px, rgba(255, 255, 255, 0.05) 26px 28px),
+    linear-gradient(120deg, #0d3b27 0%, #1b6b45 65%, #3f9a68 100%);
+}
+.nat-summary h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+.nat-summary p { margin: 6px 0 0; color: #d3eede; font-size: 15px; }
+.nat-summary-grid {
+  display: grid; gap: 14px; margin-top: 22px;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+}
+.nat-summary-item { background: rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 14px 16px; }
+.nat-summary-item b { display: block; font-size: 26px; font-weight: 800; line-height: 1.1; }
+.nat-summary-item span { font-size: 13px; color: #d3eede; }
+
+/* ---------- Region cards ---------- */
+.nat-regions {
+  display: grid; gap: 18px; margin-top: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
+}
+.nat-region {
+  background: #fff; border: 1px solid var(--dss-border); border-radius: 18px;
+  padding: 20px 22px; border-top: 5px solid #1b6b45;
+}
+.nat-region.is-national { border-top-color: #2563eb; }
+.nat-region.is-stale { border-top-color: #d97706; }
+.nat-region-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.nat-region-head h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.nat-region-count { font-size: 28px; font-weight: 800; margin: 6px 0 12px; }
+
+.nat-split { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: #e8eeea; }
+.nat-split i { display: block; height: 100%; }
+.nat-legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 16px; }
+
+.nat-pill {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
+  border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+.nat-pill.is-ok { background: #e3f6ea; color: #15803d; }
+.nat-pill.is-warn { background: #fdf0dc; color: #b45309; }
+.nat-pill.is-bad { background: #fde7e7; color: #b91c1c; }
+.nat-pill.is-done { background: #e6efff; color: #1d4ed8; }
+
+.nat-bar-row { margin-bottom: 12px; }
+.nat-bar-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--dss-muted); margin-bottom: 5px; }
+.nat-bar-label b { color: var(--dss-text); }
+.nat-bar { height: 8px; border-radius: 999px; background: #e8eeea; overflow: hidden; }
+.nat-bar i { display: block; height: 100%; border-radius: 999px; background: #1b6b45; }
+.nat-bar.is-fin i { background: #2563eb; }
+
+.nat-facts { display: grid; gap: 6px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--dss-border); font-size: 13px; }
+.nat-fact { display: flex; justify-content: space-between; gap: 10px; color: var(--dss-muted); }
+.nat-fact b { color: var(--dss-text); text-align: right; }
+.nat-fact.is-warn, .nat-fact.is-warn b { color: #b45309; }
+
+/* ---------- Three lists ---------- */
+.nat-lists {
+  display: grid; gap: 18px; margin-top: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+}
+.nat-list-head { display: flex; align-items: center; gap: 10px; }
+.nat-list-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.nat-list-icon.is-bad { background: #fde7e7; color: #dc2626; }
+.nat-list-icon.is-warn { background: #fdf0dc; color: #d97706; }
+.nat-item { padding: 12px 0; border-bottom: 1px solid var(--dss-border); display: flex; gap: 12px; }
+.nat-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.nat-item:first-child { padding-top: 0; }
+.nat-rank { font-size: 18px; font-weight: 800; color: #b8c7be; width: 22px; flex: none; }
+.nat-link { color: #1b6b45; font-weight: 600; font-size: 14px; text-decoration: none; }
+.nat-link:hover { text-decoration: underline; }
+.nat-sub { font-size: 12px; color: var(--dss-muted); margin-top: 2px; }
+.nat-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 12px; margin-top: 5px; font-weight: 600; }
+.nat-empty { color: var(--dss-muted); font-size: 14px; margin: 0; }
+
+/* ---------- Table ---------- */
+.nat-table-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.nat-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 14px; font-weight: 500; }
+.nat-select {
+  border: 1px solid var(--dss-border); border-radius: 10px; background: #fff;
+  padding: 8px 10px; font: inherit; font-size: 14px; color: var(--dss-text);
+}
+.nat-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.nat-scroll { overflow-x: auto; }
+.nat-table { width: 100%; min-width: 900px; border-collapse: collapse; font-size: 14px; }
+.nat-table th {
+  text-align: left; padding: 12px 16px; background: #14472f; color: #e8f5ed;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+}
+.nat-table th:first-child { border-top-left-radius: 12px; }
+.nat-table th:last-child { border-top-right-radius: 12px; }
+.nat-table td { padding: 12px 16px; border-bottom: 1px solid var(--dss-border); vertical-align: middle; }
+.nat-table tbody tr:hover { background: #f4f8f5; }
+.nat-code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--dss-muted); word-break: break-all; }
+.nat-mini { display: flex; align-items: center; gap: 8px; min-width: 96px; }
+.nat-mini .nat-bar { flex: 1; height: 6px; }
+.nat-mini span { font-size: 12px; font-weight: 600; width: 44px; text-align: right; }
+.nat-priority { border: 1px solid var(--dss-border); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; background: #fff; }
+.nat-priority.is-high { border-color: #d97706; color: #b45309; }
+.nat-priority.is-critical { border-color: #dc2626; color: #b91c1c; }
+.nat-never { color: #dc2626; font-weight: 600; }
+.nat-stale { color: #b45309; font-weight: 600; }
+
+@media (max-width: 900px) {
+  .nat-summary { padding: 22px 18px; }
+}
+
+/* ---------- Phones: table rows become cards, filters stack ---------- */
+@media (max-width: 700px) {
+  .nat-summary h2 { font-size: 22px; }
+  .nat-summary-item b { font-size: 22px; }
+  .nat-region-count { font-size: 24px; }
+
+  .nat-filters { width: 100%; }
+  .nat-select { flex: 1 1 140px; }
+
+  .nat-scroll { overflow-x: visible; padding: 12px; }
+  .nat-table { min-width: 0; }
+  .nat-table thead { display: none; }
+  .nat-table, .nat-table tbody, .nat-table tr, .nat-table td { display: block; width: 100%; box-sizing: border-box; }
+  .nat-table tr {
+    border: 1px solid var(--dss-border); border-radius: 14px;
+    margin-bottom: 12px; padding: 6px 0; background: #fff;
+  }
+  .nat-table td {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    border-bottom: 0; padding: 8px 14px; text-align: right;
+  }
+  .nat-table td::before {
+    content: attr(data-label); flex: none; text-align: left;
+    font-size: 12px; font-weight: 600; color: var(--dss-muted);
+  }
+  .nat-mini { min-width: 0; flex: 1; max-width: 60%; }
+}

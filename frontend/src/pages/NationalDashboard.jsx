@@ -2,14 +2,20 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { TrendingUp, TrendingDown, AlertTriangle, Wrench, Clock } from 'lucide-react'
 import api from '../api'
-import Card, { CardContent, CardHeader, CardTitle } from '../components/ui/Card'
-import Badge from '../components/ui/Badge'
+import '../styles/national.css'
 
-const STATUS_VARIANTS = {
-  on_track: 'success',
-  delayed: 'warning',
-  critical: 'danger',
-  completed: 'info',
+const STATUS_CLASS = {
+  on_track: 'is-ok',
+  delayed: 'is-warn',
+  critical: 'is-bad',
+  completed: 'is-done',
+}
+
+const STATUS_COLORS = {
+  on_track: '#16a34a',
+  delayed: '#eab308',
+  critical: '#dc2626',
+  completed: '#2563eb',
 }
 
 const STATUS_LABELS = {
@@ -29,42 +35,90 @@ function fmtMoney(v) {
   return Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
 }
 
+function fmtNum(v) {
+  return Number(v || 0).toLocaleString()
+}
+
+// keeps a progress bar between 0 and 100
+function pct(v) {
+  const n = Number(v)
+  if (Number.isNaN(n)) return 0
+  return Math.max(0, Math.min(100, n))
+}
+
+function ProgressBar({ label, value, financial }) {
+  return (
+    <div className="nat-bar-row">
+      <div className="nat-bar-label">
+        <span>{label}</span>
+        <b>{value}%</b>
+      </div>
+      <div className={`nat-bar ${financial ? 'is-fin' : ''}`}>
+        <i style={{ width: `${pct(value)}%` }} />
+      </div>
+    </div>
+  )
+}
+
 function RegionCard({ card, isNational }) {
-  const border = card.stale ? 'border-amber-400 border-2' : ''
+  const total = card.total_projects || 0
   const burn = card.financial_burn
   const burnDelta = burn ? burn.current_period_certified - burn.previous_period_certified : null
+  const cls = `nat-region ${isNational ? 'is-national' : ''} ${card.stale ? 'is-stale' : ''}`
+
   return (
-    <Card className={border}>
-      <CardContent className="pt-5">
-        <div className="flex items-center justify-between">
-          <h3 className={`font-semibold ${isNational ? 'text-blue-700' : 'text-slate-800'}`}>{card.name}</h3>
-          {card.stale && (
-            <Badge variant="warning">Stale &gt;30d</Badge>
-          )}
-        </div>
-        <p className="text-2xl font-bold text-slate-900 mt-1">{card.total_projects} projects</p>
-        <div className="flex gap-1.5 mt-2 flex-wrap">
+    <div className={cls}>
+      <div className="nat-region-head">
+        <h3 style={isNational ? { color: '#1d4ed8' } : undefined}>{card.name}</h3>
+        {card.stale && <span className="nat-pill is-warn">Stale &gt;30d</span>}
+      </div>
+      <div className="nat-region-count">{total} projects</div>
+
+      {total > 0 && (
+        <div className="nat-split">
           {Object.entries(card.status_breakdown).map(([k, v]) => (
-            <Badge key={k} variant={STATUS_VARIANTS[k]}>{v} {STATUS_LABELS[k]}</Badge>
+            <i key={k} style={{ width: `${(v / total) * 100}%`, background: STATUS_COLORS[k] }} />
           ))}
         </div>
-        <div className="mt-3 space-y-1 text-sm text-slate-600">
-          <div>Physical: <span className="font-medium text-slate-900">{card.avg_physical_pct}%</span> · Financial: <span className="font-medium text-slate-900">{card.avg_financial_pct}%</span></div>
-          <div>Area: <span className="font-medium text-slate-900">{card.total_irrigable_area_ha.toLocaleString()} ha</span> · Households: <span className="font-medium text-slate-900">{card.total_beneficiaries_thh.toLocaleString()}</span></div>
-          <div className={card.stale ? 'text-amber-700 font-medium' : ''}>
-            Last update: {card.avg_days_since_update === null ? 'no data' : `${card.avg_days_since_update}d ago avg`}
-          </div>
-          {burn && (
-            <div className="flex items-center gap-1 pt-1">
-              Certified this month: <span className="font-medium text-slate-900">{fmtMoney(burn.current_period_certified)}</span>
-              {burnDelta > 0 && <TrendingUp className="w-4 h-4 text-green-600" />}
-              {burnDelta < 0 && <TrendingDown className="w-4 h-4 text-red-600" />}
-              <span className="text-xs text-slate-400">(prev {fmtMoney(burn.previous_period_certified)})</span>
-            </div>
-          )}
+      )}
+      <div className="nat-legend">
+        {Object.entries(card.status_breakdown).map(([k, v]) => (
+          <span key={k} className={`nat-pill ${STATUS_CLASS[k]}`}>{v} {STATUS_LABELS[k]}</span>
+        ))}
+      </div>
+
+      <ProgressBar label="Physical progress" value={card.avg_physical_pct} />
+      <ProgressBar label="Financial progress" value={card.avg_financial_pct} financial />
+
+      <div className="nat-facts">
+        <div className="nat-fact"><span>Irrigable area</span><b>{fmtNum(card.total_irrigable_area_ha)} ha</b></div>
+        <div className="nat-fact"><span>Households</span><b>{fmtNum(card.total_beneficiaries_thh)}</b></div>
+        <div className={`nat-fact ${card.stale ? 'is-warn' : ''}`}>
+          <span>Last update</span>
+          <b>{card.avg_days_since_update === null ? 'no data' : `${card.avg_days_since_update}d ago avg`}</b>
         </div>
-      </CardContent>
-    </Card>
+        {burn && (
+          <div className="nat-fact">
+            <span>Certified this month</span>
+            <b style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {fmtMoney(burn.current_period_certified)}
+              {burnDelta > 0 && <TrendingUp size={15} color="#16a34a" />}
+              {burnDelta < 0 && <TrendingDown size={15} color="#dc2626" />}
+              <small style={{ color: '#8aa095', fontWeight: 500 }}>(prev {fmtMoney(burn.previous_period_certified)})</small>
+            </b>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function MiniProgress({ value, financial }) {
+  return (
+    <div className="nat-mini">
+      <div className={`nat-bar ${financial ? 'is-fin' : ''}`}><i style={{ width: `${pct(value)}%` }} /></div>
+      <span>{value}%</span>
+    </div>
   )
 }
 
@@ -112,113 +166,131 @@ export default function NationalDashboard() {
   if (loading) return <div className="text-center py-12">Loading national dashboard...</div>
   if (!data) return <div className="text-center py-12 text-slate-500">Failed to load dashboard data.</div>
 
+  const nat = data.national_card
+  const sb = nat.status_breakdown || {}
+
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-slate-900">National Overview</h1>
+    <div>
+      {/* Summary strip */}
+      <section className="nat-summary">
+        <h2>National Overview</h2>
+        <p>All irrigation projects across regions, at a glance.</p>
+        <div className="nat-summary-grid">
+          <div className="nat-summary-item"><b>{nat.total_projects}</b><span>Projects</span></div>
+          <div className="nat-summary-item"><b>{sb.on_track || 0}</b><span>On track</span></div>
+          <div className="nat-summary-item"><b>{sb.delayed || 0}</b><span>Delayed</span></div>
+          <div className="nat-summary-item"><b>{sb.critical || 0}</b><span>Critical</span></div>
+          <div className="nat-summary-item"><b>{fmtNum(nat.total_irrigable_area_ha)}</b><span>Hectares</span></div>
+          <div className="nat-summary-item"><b>{fmtNum(nat.total_beneficiaries_thh)}</b><span>Households</span></div>
+        </div>
+      </section>
 
       {/* 1. Region comparison cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="nat-regions">
         <RegionCard card={data.national_card} isNational />
         {data.region_cards.map((c) => <RegionCard key={c.region_id} card={c} />)}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="nat-lists">
         {/* 2. Top 5 at-risk projects */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-red-500" /> Top 5 At-Risk Projects
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="dss-panel">
+          <div className="dss-panel-head">
+            <div className="nat-list-head">
+              <span className="nat-list-icon is-bad"><AlertTriangle size={18} /></span>
+              Top 5 At-Risk Projects
+            </div>
+          </div>
+          <div className="dss-panel-body">
             {data.at_risk_projects.length === 0 ? (
-              <p className="text-sm text-slate-500">No projects</p>
+              <p className="nat-empty">No projects at risk.</p>
             ) : (
-              <div className="space-y-3">
-                {data.at_risk_projects.map((p, i) => (
-                  <div key={p.project_id} className="flex items-start gap-3 border-b border-slate-100 pb-3 last:border-0">
-                    <span className="text-lg font-bold text-slate-300 w-6">{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <Link to={`/projects/${p.project_id}`} className="text-sm font-medium text-blue-600 hover:underline">
-                        {p.project_code} — {p.project_name}
-                      </Link>
-                      <p className="text-xs text-slate-500">{p.region_name}</p>
-                      <div className="flex gap-3 text-xs mt-1">
-                        <span className="text-red-600">gap {p.gap_pct}%</span>
-                        <span className="text-amber-600">{p.days_stale === null ? 'never updated' : `${p.days_stale}d stale`}</span>
-                        {p.technical_support_required && <Wrench className="w-3.5 h-3.5 text-orange-500" />}
-                      </div>
+              data.at_risk_projects.map((p, i) => (
+                <div key={p.project_id} className="nat-item">
+                  <span className="nat-rank">{i + 1}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <Link to={`/projects/${p.project_id}`} className="nat-link">
+                      {p.project_code} — {p.project_name}
+                    </Link>
+                    <div className="nat-sub">{p.region_name}</div>
+                    <div className="nat-meta">
+                      <span style={{ color: '#dc2626' }}>gap {p.gap_pct}%</span>
+                      <span style={{ color: '#b45309' }}>
+                        {p.days_stale === null ? 'never updated' : `${p.days_stale}d stale`}
+                      </span>
+                      {p.technical_support_required && <Wrench size={14} color="#ea580c" />}
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 3. Open technical support requests */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-orange-500" /> Open Technical Support Requests
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="dss-panel">
+          <div className="dss-panel-head">
+            <div className="nat-list-head">
+              <span className="nat-list-icon is-warn"><Wrench size={18} /></span>
+              Open Technical Support
+            </div>
+          </div>
+          <div className="dss-panel-body">
             {data.open_tech_support.length === 0 ? (
-              <p className="text-sm text-slate-500">No open requests</p>
+              <p className="nat-empty">No open requests.</p>
             ) : (
-              <div className="space-y-3">
-                {data.open_tech_support.map((i) => (
-                  <div key={i.issue_id} className="border-b border-slate-100 pb-3 last:border-0">
-                    <Link to={`/projects/${i.project_id}`} className="text-sm font-medium text-blue-600 hover:underline">
+              data.open_tech_support.map((i) => (
+                <div key={i.issue_id} className="nat-item">
+                  <div style={{ minWidth: 0 }}>
+                    <Link to={`/projects/${i.project_id}`} className="nat-link">
                       {i.project_code} — {i.project_name}
                     </Link>
-                    <p className="text-xs text-slate-500">{i.region_name} · {i.responsible_org || 'No responsible org'}</p>
-                    <p className="text-xs text-orange-600 font-medium mt-0.5">open {i.days_open}d · {i.status}</p>
+                    <div className="nat-sub">{i.region_name} · {i.responsible_org || 'No responsible org'}</div>
+                    <div className="nat-meta"><span style={{ color: '#ea580c' }}>open {i.days_open}d · {i.status}</span></div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* 4. Overdue issues */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-red-500" /> Overdue Issues
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <div className="dss-panel">
+          <div className="dss-panel-head">
+            <div className="nat-list-head">
+              <span className="nat-list-icon is-bad"><Clock size={18} /></span>
+              Overdue Issues
+            </div>
+          </div>
+          <div className="dss-panel-body">
             {data.overdue_issues.length === 0 ? (
-              <p className="text-sm text-slate-500">No overdue issues</p>
+              <p className="nat-empty">No overdue issues.</p>
             ) : (
-              <div className="space-y-3">
-                {data.overdue_issues.map((i) => (
-                  <div key={i.issue_id} className="border-b border-slate-100 pb-3 last:border-0">
-                    <Link to={`/projects/${i.project_id}`} className="text-sm font-medium text-blue-600 hover:underline">
+              data.overdue_issues.map((i) => (
+                <div key={i.issue_id} className="nat-item">
+                  <div style={{ minWidth: 0 }}>
+                    <Link to={`/projects/${i.project_id}`} className="nat-link">
                       {i.project_code} — {i.project_name}
                     </Link>
-                    <p className="text-xs text-slate-500">{i.problem_category} · {i.responsible_org || 'No responsible org'}</p>
-                    <p className="text-xs text-red-600 font-medium mt-0.5">{i.days_overdue}d overdue · {i.status}</p>
+                    <div className="nat-sub">{i.problem_category} · {i.responsible_org || 'No responsible org'}</div>
+                    <div className="nat-meta"><span style={{ color: '#dc2626' }}>{i.days_overdue}d overdue · {i.status}</span></div>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* 5. Filterable project table */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <CardTitle>All Projects</CardTitle>
-            <div className="flex flex-wrap items-center gap-3 text-sm">
+      <div className="dss-panel" style={{ marginTop: 24 }}>
+        <div className="dss-panel-head">
+          <div className="nat-table-head">
+            <span>All Projects</span>
+            <div className="nat-filters">
               <select
+                className="nat-select"
                 value={filters.region}
                 onChange={(e) => setFilters({ ...filters, region: e.target.value })}
-                className="border border-slate-300 rounded-md px-2 py-1.5 text-sm"
               >
                 <option value="">All regions</option>
                 {data.region_cards.map((r) => (
@@ -226,16 +298,16 @@ export default function NationalDashboard() {
                 ))}
               </select>
               <select
+                className="nat-select"
                 value={filters.status}
                 onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                className="border border-slate-300 rounded-md px-2 py-1.5 text-sm"
               >
                 <option value="">All statuses</option>
                 {Object.entries(STATUS_LABELS).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
                 ))}
               </select>
-              <label className="flex items-center gap-1.5">
+              <label className="nat-check">
                 <input
                   type="checkbox"
                   checked={filters.techSupport}
@@ -243,7 +315,7 @@ export default function NationalDashboard() {
                 />
                 Tech support
               </label>
-              <label className="flex items-center gap-1.5">
+              <label className="nat-check">
                 <input
                   type="checkbox"
                   checked={filters.staleOnly}
@@ -253,67 +325,62 @@ export default function NationalDashboard() {
               </label>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  {['Code', 'Name', 'Region', 'Status', 'Phys %', 'Fin %', 'Time %', 'Last Update', 'Support', 'Priority'].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-slate-100">
-                {filteredProjects.map((p) => (
-                  <tr key={p.project_id} className="hover:bg-slate-50">
-                    <td className="px-4 py-2.5 font-mono text-xs">{p.project_code}</td>
-                    <td className="px-4 py-2.5">
-                      <Link to={`/projects/${p.project_id}`} className="text-blue-600 hover:underline font-medium">
-                        {p.project_name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2.5">{p.region_name}</td>
-                    <td className="px-4 py-2.5"><Badge variant={STATUS_VARIANTS[p.status]}>{STATUS_LABELS[p.status]}</Badge></td>
-                    <td className="px-4 py-2.5">{p.physical_pct}%</td>
-                    <td className="px-4 py-2.5">{p.financial_pct}%</td>
-                    <td className="px-4 py-2.5">{p.time_pct}%</td>
-                    <td className="px-4 py-2.5">
-                      {p.days_stale === null ? (
-                        <span className="text-red-600 font-medium">never</span>
-                      ) : (
-                        <span className={p.days_stale > 30 ? 'text-amber-700 font-medium' : ''}>{p.days_stale}d</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      {p.technical_support_required && <Wrench className="w-4 h-4 text-orange-500" />}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <select
-                        value={p.priority_level}
-                        disabled={savingPriority === p.project_id}
-                        onChange={(e) => handlePriorityChange(p.project_id, e.target.value)}
-                        className={`border rounded px-1.5 py-1 text-xs ${
-                          p.priority_level === 'critical' ? 'border-red-400 text-red-700' :
-                          p.priority_level === 'high' ? 'border-amber-400 text-amber-700' :
-                          'border-slate-300 text-slate-700'
-                        }`}
-                      >
-                        {PRIORITY_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>{o.label}</option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
+        </div>
+
+        <div className="dss-panel-body nat-scroll">
+          <table className="nat-table">
+            <thead>
+              <tr>
+                {['Code', 'Name', 'Region', 'Status', 'Physical', 'Financial', 'Time', 'Last update', 'Support', 'Priority'].map((h) => (
+                  <th key={h}>{h}</th>
                 ))}
-                {filteredProjects.length === 0 && (
-                  <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-500">No projects match the filters</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProjects.map((p) => (
+                <tr key={p.project_id}>
+                  <td data-label="Code"><span className="nat-code">{p.project_code}</span></td>
+                  <td data-label="Name">
+                    <Link to={`/projects/${p.project_id}`} className="nat-link">{p.project_name}</Link>
+                  </td>
+                  <td data-label="Region">{p.region_name}</td>
+                  <td data-label="Status">
+                    <span className={`nat-pill ${STATUS_CLASS[p.status]}`}>{STATUS_LABELS[p.status]}</span>
+                  </td>
+                  <td data-label="Physical"><MiniProgress value={p.physical_pct} /></td>
+                  <td data-label="Financial"><MiniProgress value={p.financial_pct} financial /></td>
+                  <td data-label="Time"><MiniProgress value={p.time_pct} /></td>
+                  <td data-label="Last update">
+                    {p.days_stale === null ? (
+                      <span className="nat-never">never</span>
+                    ) : (
+                      <span className={p.days_stale > 30 ? 'nat-stale' : ''}>{p.days_stale}d</span>
+                    )}
+                  </td>
+                  <td data-label="Support">
+                    {p.technical_support_required ? <Wrench size={16} color="#ea580c" /> : '—'}
+                  </td>
+                  <td data-label="Priority">
+                    <select
+                      value={p.priority_level}
+                      disabled={savingPriority === p.project_id}
+                      onChange={(e) => handlePriorityChange(p.project_id, e.target.value)}
+                      className={`nat-priority ${p.priority_level === 'high' ? 'is-high' : ''} ${p.priority_level === 'critical' ? 'is-critical' : ''}`}
+                    >
+                      {PRIORITY_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+              {filteredProjects.length === 0 && (
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: 32, color: '#5d6f65' }}>No projects match the filters</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

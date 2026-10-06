@@ -1,11 +1,30 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FolderKanban, FileText, Activity, AlertCircle, Users, LogOut, User, Globe } from 'lucide-react'
+import { useState } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
+import {
+  LayoutDashboard, Globe, FolderOpen, FileText, Activity,
+  AlertCircle, Users, LogOut, Menu,
+} from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import Badge from './ui/Badge'
+
+const BASE_NAV = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/national', label: 'National View', icon: Globe },
+  { to: '/projects', label: 'Projects', icon: FolderOpen },
+  { to: '/contracts', label: 'Contracts', icon: FileText },
+  { to: '/monitoring', label: 'Monitoring', icon: Activity },
+  { to: '/alerts', label: 'Alerts', icon: AlertCircle },
+]
+
+const ROLE_LABELS = {
+  admin: 'System Administrator',
+  regional_manager: 'Regional Manager',
+  national_viewer: 'National Viewer',
+}
 
 export default function Layout({ children }) {
-  const location = useLocation()
+  const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { user, logout, hasPermission } = useAuth()
 
   const handleLogout = () => {
@@ -13,93 +32,81 @@ export default function Layout({ children }) {
     navigate('/login')
   }
 
-  const baseNavigation = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'National View', href: '/national', icon: Globe },
-    { name: 'Projects', href: '/projects', icon: FolderKanban },
-    { name: 'Contracts', href: '/contracts', icon: FileText },
-    { name: 'Monitoring', href: '/monitoring', icon: Activity },
-    { name: 'Alerts', href: '/alerts', icon: AlertCircle },
-  ]
+  // Admin menu only for admins (same rule as the old layout)
+  const nav = hasPermission('admin')
+    ? [...BASE_NAV, { to: '/admin', label: 'Admin', icon: Users }]
+    : BASE_NAV
 
-  const navigation = hasPermission('admin')
-    ? [...baseNavigation, { name: 'Admin', href: '/admin', icon: Users }]
-    : baseNavigation
-
-  const roleLabels = {
-    admin: 'System Administrator',
-    regional_manager: 'Regional Manager',
-    national_viewer: 'National Viewer',
-  }
-
-  const roleVariants = {
-    admin: 'danger',
-    regional_manager: 'warning',
-    national_viewer: 'info',
-  }
+  const current = nav.find((n) => (n.end ? pathname === n.to : pathname.startsWith(n.to)))
+  const displayName = user?.full_name || user?.username || ''
+  const roleText = ROLE_LABELS[user?.role] || user?.role || ''
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold text-blue-600">DIPCMT-DSS</h1>
-              </div>
-              <div className="hidden sm:ml-8 sm:flex sm:space-x-4">
-                {navigation.map((item) => {
-                  const Icon = item.icon
-                  const isActive = location.pathname === item.href || 
-                    (item.href !== '/' && location.pathname.startsWith(item.href))
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                        isActive
-                          ? 'text-blue-600 bg-blue-50'
-                          : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4 mr-2" />
-                      {item.name}
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {user && (
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-slate-900">{user.full_name}</div>
-                    <div className="flex items-center gap-2 justify-end">
-                      <Badge variant={roleVariants[user.role]} className="text-xs">
-                        {roleLabels[user.role]}
-                      </Badge>
-                      {user.region_name && (
-                        <span className="text-xs text-slate-500">{user.region_name}</span>
-                      )}
-                    </div>
-                  </div>
-                  <User className="w-8 h-8 text-slate-400" />
-                </div>
-              )}
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center px-3 py-2 text-sm font-medium text-slate-700 hover:text-slate-900"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </button>
-            </div>
+    <div className={`dss-shell ${collapsed ? 'dss-collapsed' : ''}`}>
+      <aside className="dss-sidebar">
+        <div className="dss-brand">
+          <div className="dss-brand-mark">
+  <img src="/favicon.svg" alt="DIPCMT-DSS Logo" />
+</div>
+          <div className="dss-brand-text">
+            <div className="dss-brand-title">DIPCMT-DSS</div>
+            <div className="dss-brand-sub">Irrigation Monitoring</div>
           </div>
         </div>
-      </nav>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
+
+        <nav className="dss-nav">
+          {nav.map(({ to, label, icon: Icon, end }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={end}
+              className={({ isActive }) => `dss-link ${isActive ? 'active' : ''}`}
+              title={label}
+            >
+              <Icon size={20} />
+              <span className="dss-label">{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="dss-sidebar-foot">
+          {user && (
+            <div className="dss-user-chip">
+              <div className="dss-avatar">{(displayName[0] || '?').toUpperCase()}</div>
+              <div className="dss-user-text">
+                <div className="dss-user-name">{displayName}</div>
+                <div className="dss-user-role">
+                  {roleText}{user.region_name ? ` · ${user.region_name}` : ''}
+                </div>
+              </div>
+            </div>
+          )}
+          <button className="dss-signout" onClick={handleLogout}>
+            <LogOut size={18} />
+            <span className="dss-label">Sign out</span>
+          </button>
+        </div>
+      </aside>
+
+      <div className="dss-main">
+        <header className="dss-topbar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <button
+              className="dss-icon-btn"
+              onClick={() => setCollapsed((c) => !c)}
+              aria-label="Toggle sidebar"
+            >
+              <Menu size={18} />
+            </button>
+            <div>
+              <h1>{current ? current.label : 'DIPCMT-DSS'}</h1>
+              <p>Ministry of Agriculture — Digital Irrigation Construction Monitoring</p>
+            </div>
+          </div>
+        </header>
+
+        <main className="dss-page">{children}</main>
+      </div>
     </div>
   )
 }
