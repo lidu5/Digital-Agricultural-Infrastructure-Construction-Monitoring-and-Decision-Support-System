@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import api from '../api'
 import Badge from '../components/ui/Badge'
-import { DashboardHero, StatCards } from '../components/dashboard/DashboardHero'
+import { StatCards } from '../components/dashboard/DashboardHero'
 
 const STATUS_COLORS = {
   on_track: '#16a34a',
@@ -71,7 +71,6 @@ export default function Dashboard() {
 
   return (
     <div>
-      <DashboardHero />
 
       <StatCards
         total={stats.total}

@@ -2,20 +2,33 @@
 
 /* ---------- Summary strip ---------- */
 .nat-summary {
-  border-radius: 24px; padding: 28px 32px; color: #fff;
-  background:
-    repeating-linear-gradient(100deg, transparent 0 26px, rgba(255, 255, 255, 0.05) 26px 28px),
-    linear-gradient(120deg, #0d3b27 0%, #1b6b45 65%, #3f9a68 100%);
+  position: relative; overflow: hidden;
+  border-radius: 24px; padding: 28px 32px;
+  background: #ffffff; color: var(--dss-text);
+  border: 1px solid var(--dss-border);
+  box-shadow: 0 6px 24px rgba(20, 71, 47, 0.07);
 }
-.nat-summary h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
-.nat-summary p { margin: 6px 0 0; color: #d3eede; font-size: 15px; }
+/* thin green strip along the top */
+.nat-summary::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 6px;
+  background: linear-gradient(90deg, #14472f, #3f9a68, #a7f3c9);
+}
+.nat-summary h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; color: #14472f; }
+.nat-summary p { margin: 6px 0 0; color: var(--dss-muted); font-size: 15px; }
 .nat-summary-grid {
   display: grid; gap: 14px; margin-top: 22px;
   grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
 }
-.nat-summary-item { background: rgba(255, 255, 255, 0.12); border-radius: 16px; padding: 14px 16px; }
-.nat-summary-item b { display: block; font-size: 26px; font-weight: 800; line-height: 1.1; }
-.nat-summary-item span { font-size: 13px; color: #d3eede; }
+.nat-summary-item {
+  background: #f4f9f6; border: 1px solid #e1ece5; border-radius: 16px; padding: 14px 16px;
+}
+.nat-summary-item b { display: block; font-size: 26px; font-weight: 800; line-height: 1.1; color: #14472f; }
+.nat-summary-item span { font-size: 13px; color: var(--dss-muted); }
+
+/* coloured numbers: on track, delayed, critical */
+.nat-summary-item:nth-child(2) b { color: #16a34a; }
+.nat-summary-item:nth-child(3) b { color: #d97706; }
+.nat-summary-item:nth-child(4) b { color: #dc2626; }
 
 /* ---------- Region cards ---------- */
 .nat-regions {
