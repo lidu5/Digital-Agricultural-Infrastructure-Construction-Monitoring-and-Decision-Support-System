@@ -11,8 +11,8 @@ DEBUG = env.bool('DEBUG', default=False)
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 # Point GeoDjango at the GDAL/GEOS DLLs installed alongside PostGIS
-GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\17\bin\libgdal-35.dll'
-GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\17\bin\libgeos_c.dll'
+GDAL_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgdal-35.dll'
+GEOS_LIBRARY_PATH = r'C:\Program Files\PostgreSQL\18\bin\libgeos_c.dll'
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'projects',
     'contracts',
     'monitoring',
+    
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -75,6 +76,8 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'
 REST_FRAMEWORK = {
@@ -83,3 +86,5 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',  # keep for Postman testing
     ],
 }
+
+

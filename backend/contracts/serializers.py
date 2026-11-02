@@ -8,6 +8,23 @@ from .models import (
     Claim,
 )
 
+MAX_LETTER_SIZE_MB = 10
+
+
+def check_dates(requested, approved):
+    """Approved date cannot be earlier than the requested date."""
+    if requested and approved and approved < requested:
+        raise serializers.ValidationError(
+            {"approved_date": "Approved date cannot be earlier than the requested date."}
+        )
+
+
+def check_file_size(file):
+    if file and file.size > MAX_LETTER_SIZE_MB * 1024 * 1024:
+        raise serializers.ValidationError(
+            f"File too large. Maximum size is {MAX_LETTER_SIZE_MB} MB."
+        )
+    return file
 
 
 class VariationOrderSerializer(serializers.ModelSerializer):
@@ -20,13 +37,24 @@ class VariationOrderSerializer(serializers.ModelSerializer):
             "contract",
             "vo_number",
             "value",
+            "requested_date",
             "approved_date",
             "description",
+            "letter",
         ]
 
         read_only_fields = [
             "vo_id",
         ]
+
+    def validate_letter(self, file):
+        return check_file_size(file)
+
+    def validate(self, attrs):
+        requested = attrs.get("requested_date", getattr(self.instance, "requested_date", None))
+        approved = attrs.get("approved_date", getattr(self.instance, "approved_date", None))
+        check_dates(requested, approved)
+        return attrs
 
 
 class ExtensionOfTimeSerializer(serializers.ModelSerializer):
@@ -39,13 +67,24 @@ class ExtensionOfTimeSerializer(serializers.ModelSerializer):
             "contract",
             "eot_number",
             "approved_days",
+            "requested_date",
             "approved_date",
             "reason",
+            "letter",
         ]
 
         read_only_fields = [
             "eot_id",
         ]
+
+    def validate_letter(self, file):
+        return check_file_size(file)
+
+    def validate(self, attrs):
+        requested = attrs.get("requested_date", getattr(self.instance, "requested_date", None))
+        approved = attrs.get("approved_date", getattr(self.instance, "approved_date", None))
+        check_dates(requested, approved)
+        return attrs
 
 class IPCSerializer(serializers.ModelSerializer):
 
@@ -79,15 +118,30 @@ class ClaimSerializer(serializers.ModelSerializer):
         fields = [
             "claim_id",
             "contract",
-            "claim_date",
+            "requested_date",
+            "approved_date",
             "claim_amount",
             "description",
             "status",
+            "request_letter",
+            "approval_letter",
         ]
 
         read_only_fields = [
             "claim_id",
         ]
+
+    def validate_request_letter(self, file):
+        return check_file_size(file)
+
+    def validate_approval_letter(self, file):
+        return check_file_size(file)
+
+    def validate(self, attrs):
+        requested = attrs.get("requested_date", getattr(self.instance, "requested_date", None))
+        approved = attrs.get("approved_date", getattr(self.instance, "approved_date", None))
+        check_dates(requested, approved)
+        return attrs
 
 
 

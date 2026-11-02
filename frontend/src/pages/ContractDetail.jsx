@@ -320,8 +320,10 @@ export default function ContractDetail() {
                 <TableRow>
                   <TableHead>VO Number</TableHead>
                   <TableHead>Value</TableHead>
+                  <TableHead>Requested Date</TableHead>
                   <TableHead>Approved Date</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Letters</TableHead>
                   {canEdit && <TableHead></TableHead>}
                 </TableRow>
               </TableHeader>
@@ -334,9 +336,21 @@ export default function ContractDetail() {
                         .format(vo.value)}
                     </TableCell>
                     <TableCell>
+                      {vo.requested_date ? new Date(vo.requested_date).toLocaleDateString() : '-'}
+                    </TableCell>
+                    <TableCell>
                       {vo.approved_date ? new Date(vo.approved_date).toLocaleDateString() : 'Pending'}
                     </TableCell>
                     <TableCell>{vo.description || '-'}</TableCell>
+                    <TableCell>
+                      {vo.letter ? (
+                        <a href={vo.letter} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline">
+                          View letter
+                        </a>
+                      ) : (
+                        <span className="text-sm text-slate-400">No letter</span>
+                      )}
+                    </TableCell>
                     {canEdit && (
                       <TableCell>
                         <div className="flex gap-1">
@@ -379,6 +393,7 @@ export default function ContractDetail() {
                 <TableRow>
                   <TableHead>EoT Number</TableHead>
                   <TableHead>Approved Days</TableHead>
+                  <TableHead>Requested Date</TableHead>
                   <TableHead>Approved Date</TableHead>
                   <TableHead>Reason</TableHead>
                   {canEdit && <TableHead></TableHead>}
@@ -389,6 +404,9 @@ export default function ContractDetail() {
                   <TableRow key={eot.eot_id}>
                     <TableCell className="font-medium">{eot.eot_number}</TableCell>
                     <TableCell>{eot.approved_days} days</TableCell>
+                    <TableCell>
+                      {eot.requested_date ? new Date(eot.requested_date).toLocaleDateString() : '-'}
+                    </TableCell>
                     <TableCell>
                       {eot.approved_date ? new Date(eot.approved_date).toLocaleDateString() : 'Pending'}
                     </TableCell>
@@ -500,9 +518,11 @@ export default function ContractDetail() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Claim Date</TableHead>
+                  <TableHead>Requested Date</TableHead>
+                  <TableHead>Approved Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Letters</TableHead>
                   <TableHead>Status</TableHead>
                   {canEdit && <TableHead></TableHead>}
                 </TableRow>
@@ -511,13 +531,34 @@ export default function ContractDetail() {
                 {claims.map((claim) => (
                   <TableRow key={claim.claim_id}>
                     <TableCell>
-                      {claim.claim_date ? new Date(claim.claim_date).toLocaleDateString() : 'N/A'}
+                      {claim.requested_date ? new Date(claim.requested_date).toLocaleDateString() : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {claim.approved_date ? new Date(claim.approved_date).toLocaleDateString() : 'Pending'}
                     </TableCell>
                     <TableCell>
                       {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'ETB', minimumFractionDigits: 0 })
                         .format(claim.claim_amount)}
                     </TableCell>
                     <TableCell>{claim.description || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1 text-sm">
+                        {claim.request_letter ? (
+                          <a href={claim.request_letter} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                            Request letter
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">No request letter</span>
+                        )}
+                        {claim.approval_letter ? (
+                          <a href={claim.approval_letter} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                            Approval letter
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">No approval letter</span>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={
                         claim.status === 'approved' ? 'success' :

@@ -5,15 +5,20 @@ import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
 
+const MAX_FILE_MB = 10
+
 export default function VariationOrderForm({ contractId, onClose, onSuccess, editingVO = null }) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     contract: contractId,
     vo_number: '',
     value: '',
+    requested_date: '',
     approved_date: '',
     description: '',
   })
+  // Newly chosen file (null = nothing chosen, keep the existing file when editing)
+  const [letter, setLetter] = useState(null)
 
   useEffect(() => {
     if (editingVO) {
@@ -21,6 +26,7 @@ export default function VariationOrderForm({ contractId, onClose, onSuccess, edi
         contract: editingVO.contract,
         vo_number: editingVO.vo_number || '',
         value: editingVO.value || '',
+        requested_date: editingVO.requested_date || '',
         approved_date: editingVO.approved_date || '',
         description: editingVO.description || '',
       })
@@ -29,13 +35,23 @@ export default function VariationOrderForm({ contractId, onClose, onSuccess, edi
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Check file size before uploading
+    if (letter && letter.size > MAX_FILE_MB * 1024 * 1024) {
+      alert(`"${letter.name}" is too large. Maximum size is ${MAX_FILE_MB} MB.`)
+      return
+    }
+
     setLoading(true)
 
     try {
-      const payload = { ...formData }
-      Object.keys(payload).forEach((key) => {
-        if (payload[key] === '') payload[key] = null
+      // Files cannot be sent as JSON, so the form is sent as FormData.
+      // Empty values are sent as '' - the backend treats an empty date as "no date".
+      const payload = new FormData()
+      Object.entries(formData).forEach(([key, value]) => {
+        payload.append(key, value ?? '')
       })
+      if (letter) payload.append('letter', letter)
 
       if (editingVO) {
         await api.put(`/contracts/variation-orders/${editingVO.vo_id}/`, payload)
@@ -87,6 +103,12 @@ export default function VariationOrderForm({ contractId, onClose, onSuccess, edi
                 required
               />
               <Input
+                label="Requested Date"
+                type="date"
+                value={formData.requested_date}
+                onChange={(e) => setFormData({ ...formData, requested_date: e.target.value })}
+              />
+              <Input
                 label="Approved Date"
                 type="date"
                 value={formData.approved_date}
@@ -100,6 +122,24 @@ export default function VariationOrderForm({ contractId, onClose, onSuccess, edi
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
+              </div>
+
+              <div>
+                <Input
+                  label="Letter (PDF, JPG or PNG)"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setLetter(e.target.files[0] || null)}
+                />
+                {editingVO?.letter && (
+                  <p className="mt-1 text-sm text-slate-600">
+                    Current file:{' '}
+                    <a href={editingVO.letter} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                      View letter
+                    </a>{' '}
+                    (choose a new file to replace it)
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">

@@ -5,15 +5,20 @@ import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card'
 import Button from '../ui/Button'
 import Input from '../ui/Input'
 
+const MAX_FILE_MB = 10
+
 export default function ExtensionOfTimeForm({ contractId, onClose, onSuccess, editingEOT = null }) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     contract: contractId,
     eot_number: '',
     approved_days: '',
+    requested_date: '',
     approved_date: '',
     reason: '',
   })
+  // Newly chosen file (null = nothing chosen, keep the existing file when editing)
+  const [letter, setLetter] = useState(null)
 
   useEffect(() => {
     if (editingEOT) {
@@ -21,6 +26,7 @@ export default function ExtensionOfTimeForm({ contractId, onClose, onSuccess, ed
         contract: editingEOT.contract,
         eot_number: editingEOT.eot_number || '',
         approved_days: editingEOT.approved_days || '',
+        requested_date: editingEOT.requested_date || '',
         approved_date: editingEOT.approved_date || '',
         reason: editingEOT.reason || '',
       })
@@ -29,13 +35,23 @@ export default function ExtensionOfTimeForm({ contractId, onClose, onSuccess, ed
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Check file size before uploading
+    if (letter && letter.size > MAX_FILE_MB * 1024 * 1024) {
+      alert(`"${letter.name}" is too large. Maximum size is ${MAX_FILE_MB} MB.`)
+      return
+    }
+
     setLoading(true)
 
     try {
-      const payload = { ...formData }
-      Object.keys(payload).forEach((key) => {
-        if (payload[key] === '' && key !== 'reason') payload[key] = null
+      // Files cannot be sent as JSON, so the form is sent as FormData.
+      // Empty values are sent as '' - the backend treats an empty date as "no date".
+      const payload = new FormData()
+      Object.entries(formData).forEach(([key, value]) => {
+        payload.append(key, value ?? '')
       })
+      if (letter) payload.append('letter', letter)
 
       if (editingEOT) {
         await api.put(`/contracts/extensions-of-time/${editingEOT.eot_id}/`, payload)
@@ -85,6 +101,12 @@ export default function ExtensionOfTimeForm({ contractId, onClose, onSuccess, ed
                 required
               />
               <Input
+                label="Requested Date"
+                type="date"
+                value={formData.requested_date}
+                onChange={(e) => setFormData({ ...formData, requested_date: e.target.value })}
+              />
+              <Input
                 label="Approved Date"
                 type="date"
                 value={formData.approved_date}
@@ -98,6 +120,24 @@ export default function ExtensionOfTimeForm({ contractId, onClose, onSuccess, ed
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                 />
+              </div>
+
+              <div>
+                <Input
+                  label="Letter (PDF, JPG or PNG)"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setLetter(e.target.files[0] || null)}
+                />
+                {editingEOT?.letter && (
+                  <p className="mt-1 text-sm text-slate-600">
+                    Current file:{' '}
+                    <a href={editingEOT.letter} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                      View letter
+                    </a>{' '}
+                    (choose a new file to replace it)
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">

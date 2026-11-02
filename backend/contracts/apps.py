@@ -7,3 +7,4 @@ class ContractsConfig(AppConfig):
 
     def ready(self):
         import contracts.signals
+        

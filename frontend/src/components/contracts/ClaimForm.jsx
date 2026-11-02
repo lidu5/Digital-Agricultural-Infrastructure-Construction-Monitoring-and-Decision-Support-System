@@ -5,21 +5,28 @@ import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card'
 import Button from '../ui/Button'
 import Input, { Select } from '../ui/Input'
 
+const MAX_FILE_MB = 10
+
 export default function ClaimForm({ contractId, onClose, onSuccess, editingClaim = null }) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     contract: contractId,
-    claim_date: '',
+    requested_date: '',
+    approved_date: '',
     claim_amount: '',
     description: '',
     status: 'open',
   })
+  // Newly chosen files (null = nothing chosen, keep the existing file when editing)
+  const [requestLetter, setRequestLetter] = useState(null)
+  const [approvalLetter, setApprovalLetter] = useState(null)
 
   useEffect(() => {
     if (editingClaim) {
       setFormData({
         contract: editingClaim.contract,
-        claim_date: editingClaim.claim_date || '',
+        requested_date: editingClaim.requested_date || '',
+        approved_date: editingClaim.approved_date || '',
         claim_amount: editingClaim.claim_amount || '',
         description: editingClaim.description || '',
         status: editingClaim.status || 'open',
@@ -29,14 +36,28 @@ export default function ClaimForm({ contractId, onClose, onSuccess, editingClaim
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    // Check file sizes before uploading
+    for (const file of [requestLetter, approvalLetter]) {
+      if (file && file.size > MAX_FILE_MB * 1024 * 1024) {
+        alert(`"${file.name}" is too large. Maximum size is ${MAX_FILE_MB} MB.`)
+        return
+      }
+    }
+
     setLoading(true)
 
     try {
-      const payload = { ...formData }
-      Object.keys(payload).forEach((key) => {
-        if (payload[key] === '' && key !== 'description') payload[key] = null
+      // Files cannot be sent as JSON, so the form is sent as FormData.
+      // Empty values are sent as '' - the backend treats an empty date as "no date".
+      const payload = new FormData()
+      Object.entries(formData).forEach(([key, value]) => {
+        payload.append(key, value ?? '')
       })
+      if (requestLetter) payload.append('request_letter', requestLetter)
+      if (approvalLetter) payload.append('approval_letter', approvalLetter)
 
+      // Do NOT set the Content-Type header yourself - the browser adds it with the right boundary
       if (editingClaim) {
         await api.put(`/contracts/claims/${editingClaim.claim_id}/`, payload)
       } else {
@@ -71,10 +92,16 @@ export default function ClaimForm({ contractId, onClose, onSuccess, editingClaim
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <Input
-                label="Claim Date"
+                label="Requested Date"
                 type="date"
-                value={formData.claim_date}
-                onChange={(e) => setFormData({ ...formData, claim_date: e.target.value })}
+                value={formData.requested_date}
+                onChange={(e) => setFormData({ ...formData, requested_date: e.target.value })}
+              />
+              <Input
+                label="Approved Date"
+                type="date"
+                value={formData.approved_date}
+                onChange={(e) => setFormData({ ...formData, approved_date: e.target.value })}
               />
               <Input
                 label="Claim Amount (ETB)"
@@ -102,6 +129,52 @@ export default function ClaimForm({ contractId, onClose, onSuccess, editingClaim
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 />
+              </div>
+
+              <div>
+                <Input
+                  label="Request Letter (PDF, JPG or PNG)"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setRequestLetter(e.target.files[0] || null)}
+                />
+                {editingClaim?.request_letter && (
+                  <p className="mt-1 text-sm text-slate-600">
+                    Current file:{' '}
+                    <a
+                      href={editingClaim.request_letter}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      View request letter
+                    </a>{' '}
+                    (choose a new file to replace it)
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Input
+                  label="Approval Letter (PDF, JPG or PNG)"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => setApprovalLetter(e.target.files[0] || null)}
+                />
+                {editingClaim?.approval_letter && (
+                  <p className="mt-1 text-sm text-slate-600">
+                    Current file:{' '}
+                    <a
+                      href={editingClaim.approval_letter}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      View approval letter
+                    </a>{' '}
+                    (choose a new file to replace it)
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">
