@@ -1,20 +1,26 @@
 import { useState, useEffect } from 'react'
-import { Activity, AlertCircle, FileText } from 'lucide-react'
+import { Activity, AlertCircle, FileText, Plus, Pencil, Trash2 } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 import api from '../api'
 import Card, { CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import Table, { TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table'
 import Badge from '../components/ui/Badge'
 import Button from '../components/ui/Button'
 import { Select } from '../components/ui/Input'
+import DocumentForm from '../components/monitoring/DocumentForm'
 
 export default function Monitoring() {
+  const { hasPermission } = useAuth()
+  const canEdit = hasPermission('edit')
   const [activeTab, setActiveTab] = useState('progress')
   const [progressRecords, setProgressRecords] = useState([])
   const [issues, setIssues] = useState([])
   const [documents, setDocuments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [showDocForm, setShowDocForm] = useState(false)
+  const [editingDoc, setEditingDoc] = useState(null)
 
-  useEffect(() => {
+  const loadData = () => {
     Promise.all([
       api.get('/monitoring/progress-records/'),
       api.get('/monitoring/issues/'),
@@ -27,7 +33,20 @@ export default function Monitoring() {
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(loadData, [])
+
+  const handleDocDelete = async (doc) => {
+    if (!window.confirm('Delete this document? This cannot be undone.')) return
+    try {
+      await api.delete(`/monitoring/documents/${doc.document_id}/`)
+      loadData()
+    } catch (err) {
+      console.error('Failed to delete document:', err)
+      alert('Failed to delete document.')
+    }
+  }
 
   if (loading) {
     return <div className="text-center py-12">Loading monitoring data...</div>
@@ -86,7 +105,7 @@ export default function Monitoring() {
                 {progressRecords.map((record) => (
                   <TableRow key={record.record_id}>
                     <TableCell>{new Date(record.record_date).toLocaleDateString()}</TableCell>
-                    <TableCell className="font-medium">{record.project_code || record.project}</TableCell>
+                    <TableCell className="font-medium">{record.project_name || record.project_code || record.project}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="w-16 bg-slate-200 rounded-full h-2">
@@ -166,7 +185,7 @@ export default function Monitoring() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-slate-600">Project:</span>{' '}
-                        <span className="font-medium">{issue.project_code || issue.project}</span>
+                        <span className="font-medium">{issue.project_name || issue.project_code || issue.project}</span>
                       </div>
                       {issue.responsible_org_name && (
                         <div>
@@ -210,7 +229,15 @@ export default function Monitoring() {
       {activeTab === 'documents' && (
         <Card>
           <CardHeader>
-            <CardTitle>Project Documents</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle>Project Documents</CardTitle>
+              {canEdit && (
+                <Button size="sm" onClick={() => { setEditingDoc(null); setShowDocForm(true) }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Document
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -227,15 +254,29 @@ export default function Monitoring() {
               <TableBody>
                 {documents.map((doc) => (
                   <TableRow key={doc.document_id}>
-                    <TableCell className="font-medium">{doc.project_code || doc.project}</TableCell>
+                    <TableCell className="font-medium">{doc.project_name || doc.project_code || doc.project}</TableCell>
                     <TableCell>{doc.document_type_name || doc.document_type}</TableCell>
                     <TableCell>{doc.description || '-'}</TableCell>
                     <TableCell>{new Date(doc.upload_date).toLocaleDateString()}</TableCell>
                     <TableCell>{doc.uploaded_by_name || 'N/A'}</TableCell>
                     <TableCell>
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" size="sm">View</Button>
-                      </a>
+                      <div className="flex gap-1">
+                        {(doc.file || doc.file_url) && (
+                          <a href={doc.file || doc.file_url} target="_blank" rel="noopener noreferrer">
+                            <Button variant="ghost" size="sm">View</Button>
+                          </a>
+                        )}
+                        {canEdit && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => { setEditingDoc(doc); setShowDocForm(true) }}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDocDelete(doc)}>
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -246,6 +287,18 @@ export default function Monitoring() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {showDocForm && (
+        <DocumentForm
+          editingDoc={editingDoc}
+          onClose={() => { setShowDocForm(false); setEditingDoc(null) }}
+          onSuccess={() => {
+            loadData()
+            setShowDocForm(false)
+            setEditingDoc(null)
+          }}
+        />
       )}
     </div>
   )

@@ -6,6 +6,10 @@ from .views import (
     ExtensionOfTimeViewSet,
     IPCViewSet,
     ClaimViewSet,
+    BOQSectionViewSet,
+    BOQItemViewSet,
+    PhysicalProgressViewSet,
+    IPCLineItemViewSet,
 )
 
 router = DefaultRouter()
@@ -19,6 +23,11 @@ router.register(r"extensions-of-time", ExtensionOfTimeViewSet,basename="extensio
 router.register(r"ipcs",IPCViewSet, basename="ipc")
 
 router.register( r"claims",ClaimViewSet, basename="claim")
+
+router.register(r"boq-sections", BOQSectionViewSet, basename="boq-section")
+router.register(r"boq-items", BOQItemViewSet, basename="boq-item")
+router.register(r"physical-progress", PhysicalProgressViewSet, basename="physical-progress")
+router.register(r"ipc-line-items", IPCLineItemViewSet, basename="ipc-line-item")
 
 
 urlpatterns = router.urls

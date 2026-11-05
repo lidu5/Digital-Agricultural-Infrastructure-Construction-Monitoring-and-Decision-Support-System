@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { MapPin, Filter, Plus } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import api from '../api'
@@ -19,15 +19,18 @@ const statusVariant = {
 
 export default function Projects() {
   const { hasPermission } = useAuth()
+  const [searchParams] = useSearchParams()
   const [projects, setProjects] = useState([])
   const [filteredProjects, setFilteredProjects] = useState([])
   const [regions, setRegions] = useState([])
+  const [programs, setPrograms] = useState([])
   const [loading, setLoading] = useState(true)
   const [showProjectForm, setShowProjectForm] = useState(false)
-  
+
   const [filters, setFilters] = useState({
-    region: '',
-    status: '',
+    region: searchParams.get('region') || '',
+    program: searchParams.get('program') || '',
+    status: searchParams.get('status') || '',
     search: '',
   })
 
@@ -37,11 +40,13 @@ export default function Projects() {
     Promise.all([
       api.get('/projects/projects/'),
       api.get('/geography/regions/'),
+      api.get('/projects/programs/'),
     ])
-      .then(([projectsRes, regionsRes]) => {
+      .then(([projectsRes, regionsRes, programsRes]) => {
         setProjects(projectsRes.data)
         setFilteredProjects(projectsRes.data)
         setRegions(regionsRes.data)
+        setPrograms(programsRes.data)
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false))
@@ -55,7 +60,11 @@ export default function Projects() {
     let filtered = projects
 
     if (filters.region) {
-      filtered = filtered.filter(p => p.region === parseInt(filters.region))
+      filtered = filtered.filter(p => String(p.region) === String(filters.region))
+    }
+
+    if (filters.program) {
+      filtered = filtered.filter(p => String(p.program) === String(filters.program))
     }
 
     if (filters.status) {
@@ -107,14 +116,14 @@ export default function Projects() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setFilters({ region: '', status: '', search: '' })}
+              onClick={() => setFilters({ region: '', program: '', status: '', search: '' })}
             >
               Clear
             </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <input
               type="text"
               placeholder="Search by code or name..."
@@ -129,6 +138,15 @@ export default function Projects() {
               <option value="">All Regions</option>
               {regions.map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </Select>
+            <Select
+              value={filters.program}
+              onChange={(e) => setFilters({ ...filters, program: e.target.value })}
+            >
+              <option value="">All Programs</option>
+              {programs.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </Select>
             <Select
@@ -158,6 +176,7 @@ export default function Projects() {
                 <TableHead>Code</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Region</TableHead>
+                <TableHead>Program</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Physical %</TableHead>
                 <TableHead>Financial %</TableHead>
@@ -171,6 +190,7 @@ export default function Projects() {
                   <TableCell className="font-medium">{project.project_code}</TableCell>
                   <TableCell>{project.project_name}</TableCell>
                   <TableCell>{project.region_name || project.region}</TableCell>
+                  <TableCell className="text-xs text-slate-500">{project.program_name || '—'}</TableCell>
                   <TableCell>
                     <Badge variant={statusVariant[project.overall_status_flag]}>
                       {project.overall_status_flag.replace('_', ' ')}

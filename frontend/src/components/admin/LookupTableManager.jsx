@@ -17,6 +17,7 @@ const LOOKUP_TABLES = [
   { key: 'problem-categories', label: 'Problem Categories', endpoint: '/monitoring/problem-categories/' },
   { key: 'document-types', label: 'Document Types', endpoint: '/monitoring/document-types/' },
   { key: 'alert-types', label: 'Alert Types', endpoint: '/monitoring/alert-types/' },
+  { key: 'milestone-types', label: 'Milestone Types', endpoint: '/projects/milestone-types/' },
 ]
 
 export default function LookupTableManager() {
@@ -25,7 +26,7 @@ export default function LookupTableManager() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
-  const [formData, setFormData] = useState({ name: '', description: '' })
+  const [formData, setFormData] = useState({ name: '', description: '', sequence_order: '' })
 
   useEffect(() => {
     loadItems()
@@ -34,7 +35,13 @@ export default function LookupTableManager() {
   const loadItems = () => {
     setLoading(true)
     api.get(activeTable.endpoint)
-      .then((res) => setItems(res.data))
+      .then((res) => {
+        const data = res.data
+        if (activeTable.key === 'milestone-types') {
+          data.sort((a, b) => a.sequence_order - b.sequence_order)
+        }
+        setItems(data)
+      })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false))
   }
@@ -73,6 +80,7 @@ export default function LookupTableManager() {
     setFormData({
       name: item.name,
       description: item.description || '',
+      sequence_order: item.sequence_order ?? '',
     })
     setShowModal(true)
   }
@@ -80,10 +88,11 @@ export default function LookupTableManager() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingItem(null)
-    setFormData({ name: '', description: '' })
+    setFormData({ name: '', description: '', sequence_order: '' })
   }
 
   const hasDescription = activeTable.key === 'alert-types'
+  const hasSequenceOrder = activeTable.key === 'milestone-types'
 
   return (
     <div className="space-y-6">
@@ -131,6 +140,7 @@ export default function LookupTableManager() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      {hasSequenceOrder && <TableHead>Order</TableHead>}
                       <TableHead>Name</TableHead>
                       {hasDescription && <TableHead>Description</TableHead>}
                       <TableHead>Actions</TableHead>
@@ -139,6 +149,7 @@ export default function LookupTableManager() {
                   <TableBody>
                     {items.map((item) => (
                       <TableRow key={item.id}>
+                        {hasSequenceOrder && <TableCell>{item.sequence_order}</TableCell>}
                         <TableCell className="font-medium">{item.name}</TableCell>
                         {hasDescription && <TableCell>{item.description || '-'}</TableCell>}
                         <TableCell>
@@ -175,7 +186,7 @@ export default function LookupTableManager() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
           <Card className="w-full max-w-md">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -195,6 +206,16 @@ export default function LookupTableManager() {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
+                {hasSequenceOrder && (
+                  <Input
+                    label="Sequence Order"
+                    type="number"
+                    min="1"
+                    value={formData.sequence_order}
+                    onChange={(e) => setFormData({ ...formData, sequence_order: e.target.value })}
+                    required
+                  />
+                )}
                 {hasDescription && (
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">

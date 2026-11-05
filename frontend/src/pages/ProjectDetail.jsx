@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, MapPin, Users, Droplet, Calendar, AlertCircle, Plus, Pencil } from 'lucide-react'
+import { ArrowLeft, MapPin, Users, Droplet, Calendar, AlertCircle, Plus, Pencil, Trash2 } from 'lucide-react'
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -14,6 +14,7 @@ import ProgressRecordForm from '../components/monitoring/ProgressRecordForm'
 import IssueForm from '../components/monitoring/IssueForm'
 import MilestoneForm from '../components/projects/MilestoneForm'
 import ContractForm from '../components/contracts/ContractForm'
+import DocumentForm from '../components/monitoring/DocumentForm'
 
 const STATUS_COLORS = {
   on_track: '#16a34a',
@@ -74,10 +75,24 @@ export default function ProjectDetail() {
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
   const [showProgressForm, setShowProgressForm] = useState(false)
+  const [editingRecord, setEditingRecord] = useState(null)
   const [showIssueForm, setShowIssueForm] = useState(false)
   const [showMilestoneForm, setShowMilestoneForm] = useState(false)
   const [showContractForm, setShowContractForm] = useState(false)
   const [editingContract, setEditingContract] = useState(null)
+  const [showDocForm, setShowDocForm] = useState(false)
+  const [editingDoc, setEditingDoc] = useState(null)
+
+  const handleDocDelete = async (doc) => {
+    if (!window.confirm('Delete this document? This cannot be undone.')) return
+    try {
+      await api.delete(`/monitoring/documents/${doc.document_id}/`)
+      loadProjectData()
+    } catch (err) {
+      console.error('Failed to delete document:', err)
+      alert('Failed to delete document.')
+    }
+  }
 
   const loadProjectData = () => {
     setLoading(true)
@@ -390,7 +405,7 @@ export default function ProjectDetail() {
             <div className="flex justify-between items-center">
               <CardTitle>Progress Trend</CardTitle>
               {canEdit && (
-                <Button onClick={() => setShowProgressForm(true)} size="sm">
+                <Button onClick={() => { setEditingRecord(null); setShowProgressForm(true) }} size="sm">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Progress Record
                 </Button>
@@ -415,6 +430,45 @@ export default function ProjectDetail() {
               <p className="text-slate-500 text-center py-12">No progress records available</p>
             )}
           </CardContent>
+          {progressRecords.length > 0 && (
+            <CardContent className="p-0 border-t border-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Record Date</TableHead>
+                    <TableHead>Physical %</TableHead>
+                    <TableHead>Financial %</TableHead>
+                    <TableHead>Time %</TableHead>
+                    <TableHead>Recorded By</TableHead>
+                    {canEdit && <TableHead></TableHead>}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {progressRecords.map((r) => (
+                    <TableRow key={r.record_id}>
+                      <TableCell>{new Date(r.record_date).toLocaleDateString()}</TableCell>
+                      <TableCell>{parseFloat(r.physical_progress_pct || 0).toFixed(1)}%</TableCell>
+                      <TableCell>{parseFloat(r.financial_progress_pct || 0).toFixed(1)}%</TableCell>
+                      <TableCell>{parseFloat(r.time_progress_pct || 0).toFixed(1)}%</TableCell>
+                      <TableCell>{r.recorded_by_name || 'N/A'}</TableCell>
+                      {canEdit && (
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setEditingRecord(r); setShowProgressForm(true) }}
+                            aria-label="Edit progress record"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          )}
         </Card>
       )}
 
@@ -600,7 +654,15 @@ export default function ProjectDetail() {
       {activeTab === 'documents' && (
         <Card>
           <CardHeader>
-            <CardTitle>Project Documents</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle>Project Documents</CardTitle>
+              {canEdit && (
+                <Button size="sm" onClick={() => { setEditingDoc(null); setShowDocForm(true) }}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Document
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -621,9 +683,23 @@ export default function ProjectDetail() {
                     <TableCell>{new Date(doc.upload_date).toLocaleDateString()}</TableCell>
                     <TableCell>{doc.uploaded_by_name || 'N/A'}</TableCell>
                     <TableCell>
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="ghost" size="sm">View</Button>
-                      </a>
+                      <div className="flex gap-1">
+                        {(doc.file || doc.file_url) && (
+                          <a href={doc.file || doc.file_url} target="_blank" rel="noopener noreferrer">
+                            <Button variant="ghost" size="sm">View</Button>
+                          </a>
+                        )}
+                        {canEdit && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => { setEditingDoc(doc); setShowDocForm(true) }}>
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDocDelete(doc)}>
+                              <Trash2 className="w-4 h-4 text-red-500" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -639,10 +715,12 @@ export default function ProjectDetail() {
       {showProgressForm && (
         <ProgressRecordForm
           project={project}
-          onClose={() => setShowProgressForm(false)}
+          editingRecord={editingRecord}
+          onClose={() => { setShowProgressForm(false); setEditingRecord(null) }}
           onSuccess={() => {
             loadProjectData()
             setShowProgressForm(false)
+            setEditingRecord(null)
           }}
         />
       )}
@@ -678,6 +756,19 @@ export default function ProjectDetail() {
           onSuccess={() => {
             loadProjectData()
             setShowMilestoneForm(false)
+          }}
+        />
+      )}
+
+      {showDocForm && (
+        <DocumentForm
+          projectId={id}
+          editingDoc={editingDoc}
+          onClose={() => { setShowDocForm(false); setEditingDoc(null) }}
+          onSuccess={() => {
+            loadProjectData()
+            setShowDocForm(false)
+            setEditingDoc(null)
           }}
         />
       )}

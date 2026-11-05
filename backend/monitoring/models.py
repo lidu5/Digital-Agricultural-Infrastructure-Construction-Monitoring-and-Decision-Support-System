@@ -87,13 +87,13 @@ class ProgressRecord(models.Model):
     @property
     def physical_progress_pct(self):
         if self.total_contract_quantity:
-            return round(self.actual_quantity_completed / self.total_contract_quantity * 100, 2)
+            return round((self.actual_quantity_completed or 0) / self.total_contract_quantity * 100, 2)
         return 0
 
     @property
     def financial_progress_pct(self):
         if self.contract_amount_snapshot:
-            return round(self.certified_amount / self.contract_amount_snapshot * 100, 2)
+            return round((self.certified_amount or 0) / self.contract_amount_snapshot * 100, 2)
         return 0
 
     @property
@@ -178,7 +178,8 @@ class Document(models.Model):
     document_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='documents')
     document_type = models.ForeignKey(DocumentType, on_delete=models.PROTECT, related_name='documents')
-    file_url = models.URLField(max_length=500)
+    file = models.FileField(upload_to='documents/', null=True, blank=True)
+    file_url = models.URLField(max_length=500, blank=True)
     description = models.TextField(blank=True)
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents_uploaded')
     upload_date = models.DateField(auto_now_add=True)

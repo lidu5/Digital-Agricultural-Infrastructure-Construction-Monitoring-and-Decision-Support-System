@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Users, Building2, Database, MapPin } from 'lucide-react'
+import { Users, Building2, Database, MapPin, FolderKanban } from 'lucide-react'
 import UserManagement from '../components/admin/UserManagement'
 import OrganizationManagement from '../components/admin/OrganizationManagement'
 import LookupTableManager from '../components/admin/LookupTableManager'
 import GeographicManager from '../components/admin/GeographicManager'
+import ProgramManagement from '../components/admin/ProgramManagement'
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState('users')
@@ -11,6 +12,7 @@ export default function Admin() {
   const tabs = [
     { id: 'users', label: 'Users', icon: Users },
     { id: 'organizations', label: 'Organizations', icon: Building2 },
+    { id: 'programs', label: 'Programs', icon: FolderKanban },
     { id: 'lookups', label: 'Lookup Tables', icon: Database },
     { id: 'geography', label: 'Geography', icon: MapPin },
   ]
@@ -44,6 +46,7 @@ export default function Admin() {
       <div>
         {activeTab === 'users' && <UserManagement />}
         {activeTab === 'organizations' && <OrganizationManagement />}
+        {activeTab === 'programs' && <ProgramManagement />}
         {activeTab === 'lookups' && <LookupTableManager />}
         {activeTab === 'geography' && <GeographicManager />}
       </div>

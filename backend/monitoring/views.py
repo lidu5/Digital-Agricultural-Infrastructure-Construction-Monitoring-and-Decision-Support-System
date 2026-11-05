@@ -1,10 +1,13 @@
 import datetime
+from decimal import Decimal
 
 from django.db.models import Max, Sum
 from django.utils import timezone
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from audit.mixins import AuditLogMixin, AuditAction, _snapshot, _write_log
 
 from geography.models import Region
 from projects.models import Project
@@ -38,13 +41,13 @@ class AlertTypeViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
 
-class ProgressRecordViewSet(viewsets.ModelViewSet):
+class ProgressRecordViewSet(AuditLogMixin, viewsets.ModelViewSet):
     serializer_class = ProgressRecordSerializer
     permission_classes = [MonitoringScopedPermission]
 
     def get_queryset(self):
         user = self.request.user
-        qs = ProgressRecord.objects.all()
+        qs = ProgressRecord.objects.select_related('project', 'recorded_by').all()
         project_id = self.request.query_params.get('project')
         if project_id:
             qs = qs.filter(project_id=project_id)
@@ -52,17 +55,56 @@ class ProgressRecordViewSet(viewsets.ModelViewSet):
             return qs.filter(project__region=user.region)
         return qs
 
+    def _rollup_from_contract(self, serializer):
+        """
+        Ideal usage: when the record is tied to a contract, derive its
+        figures from measured contract data (BOQ quantities, certified
+        IPCs, contract dates) instead of trusting manual entry.
+        """
+        contract = serializer.validated_data.get(
+            'contract', getattr(serializer.instance, 'contract', None)
+        )
+        if not contract:
+            return
+        record_date = serializer.validated_data.get(
+            'record_date', getattr(serializer.instance, 'record_date', None)
+        )
+        snap = contract.progress_snapshot(record_date)
+        data = serializer.validated_data
+
+        if snap['physical_pct'] is not None:
+            # Store as pct-of-100 so physical_progress_pct == the rolled-up %
+            data['total_contract_quantity'] = Decimal('100')
+            data['actual_quantity_completed'] = snap['physical_pct']
+        elif contract.contract_quantity:
+            # No BOQ items to measure against — lock the denominator to the
+            # contract quantity and keep the user's entered quantity.
+            data['total_contract_quantity'] = contract.contract_quantity
+
+        data['contract_amount_snapshot'] = snap['contract_amount']
+        data['certified_amount'] = snap['certified_amount']
+        if snap['total_duration_days'] is not None:
+            data['total_duration_days'] = snap['total_duration_days']
+        if snap['elapsed_duration_days'] is not None:
+            data['elapsed_duration_days'] = snap['elapsed_duration_days']
+
     def perform_create(self, serializer):
-        serializer.save(recorded_by=self.request.user)
+        self._rollup_from_contract(serializer)
+        instance = serializer.save(recorded_by=self.request.user)
+        _write_log(self.request, AuditAction.CREATE, instance, _snapshot(instance))
+
+    def perform_update(self, serializer):
+        self._rollup_from_contract(serializer)
+        super().perform_update(serializer)
 
 
-class IssueViewSet(viewsets.ModelViewSet):
+class IssueViewSet(AuditLogMixin, viewsets.ModelViewSet):
     serializer_class = IssueSerializer
     permission_classes = [MonitoringScopedPermission]
 
     def get_queryset(self):
         user = self.request.user
-        qs = Issue.objects.all()
+        qs = Issue.objects.select_related('project', 'problem_category', 'responsible_org').all()
         project_id = self.request.query_params.get('project')
         if project_id:
             qs = qs.filter(project_id=project_id)
@@ -71,16 +113,17 @@ class IssueViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(raised_by=self.request.user)
+        instance = serializer.save(raised_by=self.request.user)
+        _write_log(self.request, AuditAction.CREATE, instance, _snapshot(instance))
 
 
-class DocumentViewSet(viewsets.ModelViewSet):
+class DocumentViewSet(AuditLogMixin, viewsets.ModelViewSet):
     serializer_class = DocumentSerializer
     permission_classes = [MonitoringScopedPermission]
 
     def get_queryset(self):
         user = self.request.user
-        qs = Document.objects.all()
+        qs = Document.objects.select_related('project', 'document_type', 'uploaded_by').all()
         project_id = self.request.query_params.get('project')
         if project_id:
             qs = qs.filter(project_id=project_id)
@@ -89,16 +132,17 @@ class DocumentViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(uploaded_by=self.request.user)
+        instance = serializer.save(uploaded_by=self.request.user)
+        _write_log(self.request, AuditAction.CREATE, instance, _snapshot(instance))
 
 
-class AlertViewSet(viewsets.ModelViewSet):
+class AlertViewSet(AuditLogMixin, viewsets.ModelViewSet):
     serializer_class = AlertSerializer
     permission_classes = [AlertPermission]
 
     def get_queryset(self):
         user = self.request.user
-        qs = Alert.objects.all()
+        qs = Alert.objects.select_related('project', 'alert_type', 'contract').all()
         project_id = self.request.query_params.get('project')
         if project_id:
             qs = qs.filter(project_id=project_id)
@@ -127,7 +171,7 @@ class NationalDashboardView(APIView):
         today = timezone.now().date()
         user = request.user
 
-        projects = Project.objects.select_related('region').all()
+        projects = Project.objects.select_related('region', 'program').all()
         if user.role == 'regional_manager':
             projects = projects.filter(region=user.region)
 
@@ -157,15 +201,25 @@ class NationalDashboardView(APIView):
             risk = gap + days_stale + (
                 self.TECH_SUPPORT_RISK_WEIGHT if p.technical_support_required else 0
             )
+            measured = p.measured_progress()
             project_rows.append({
                 'project_id': str(p.project_id),
                 'project_code': p.project_code,
                 'project_name': p.project_name,
                 'region_id': p.region_id,
                 'region_name': p.region.name,
+                'program_id': str(p.program_id) if p.program_id else None,
+                'program_name': p.program.name if p.program else None,
+                'program_code': p.program.code if p.program else None,
                 'status': p.overall_status_flag,
-                'physical_pct': float(p.physical_status_pct),
-                'financial_pct': float(p.financial_status_pct),
+                'physical_pct': (
+                    float(measured['physical']) if measured['physical'] is not None
+                    else float(pr.physical_progress_pct) if pr else 0.0
+                ),
+                'financial_pct': (
+                    float(measured['financial']) if measured['financial'] is not None
+                    else float(pr.financial_progress_pct) if pr else 0.0
+                ),
                 'time_pct': time_pct,
                 'gap_pct': gap,
                 'days_stale': days_stale if pr else None,
@@ -261,6 +315,45 @@ class NationalDashboardView(APIView):
             reverse=True,
         )
 
+        # ---- Region → Program summary ------------------------------------
+        from collections import defaultdict
+        rp_groups = defaultdict(lambda: defaultdict(list))
+        for row in project_rows:
+            rid = str(row['region_id'])
+            pid = row.get('program_id') or '__none__'
+            rp_groups[rid][pid].append(row)
+
+        region_program_summary = {}
+        for rid, programs in rp_groups.items():
+            prog_list = []
+            for pid, rows in programs.items():
+                sb = {'on_track': 0, 'delayed': 0, 'critical': 0, 'completed': 0}
+                for r in rows:
+                    if r['status'] in sb:
+                        sb[r['status']] += 1
+                sample = rows[0]
+                prog_list.append({
+                    'program_id': sample.get('program_id'),
+                    'program_name': sample.get('program_name') or 'No Program',
+                    'program_code': sample.get('program_code'),
+                    'total_projects': len(rows),
+                    'status_breakdown': sb,
+                    'total_beneficiaries_thh': sum(r['beneficiaries_thh'] for r in rows),
+                    'total_irrigable_area_ha': round(sum(r['irrigable_area_ha'] for r in rows), 2),
+                    'projects': sorted([
+                        {
+                            'project_id': r['project_id'],
+                            'project_code': r['project_code'],
+                            'project_name': r['project_name'],
+                            'status': r['status'],
+                            'beneficiaries_thh': r['beneficiaries_thh'],
+                            'irrigable_area_ha': r['irrigable_area_ha'],
+                        }
+                        for r in rows
+                    ], key=lambda x: x['project_code']),
+                })
+            region_program_summary[rid] = sorted(prog_list, key=lambda x: x['program_name'])
+
         return Response({
             'region_cards': region_cards,
             'national_card': national_card,
@@ -268,6 +361,7 @@ class NationalDashboardView(APIView):
             'open_tech_support': tech_support,
             'overdue_issues': overdue_issues,
             'projects': project_rows,
+            'region_program_summary': region_program_summary,
         })
 
     def _aggregate_card(self, name, rows, region_id=None):

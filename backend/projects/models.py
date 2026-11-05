@@ -9,6 +9,7 @@ there's no circular import.
 """
 
 import uuid
+from decimal import Decimal
 from django.contrib.gis.db import models as gis_models
 from django.db import models
 
@@ -17,6 +18,24 @@ from geography.models import (
     ProjectType, WaterSource, IrrigationTechnology, IrrigationSystem,
     ProjectCategory, FinancingSource, Crop,
 )
+
+
+class Program(models.Model):
+    """
+    A program groups one or more projects under a common funding umbrella
+    or implementation initiative (e.g. "NRCP Phase II").
+    """
+    name = models.CharField(max_length=255, unique=True)
+    code = models.CharField(max_length=30, unique=True, help_text='Short unique identifier, e.g. NRCP-02')
+    description = models.TextField(blank=True)
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 
 class StatusFlag(models.TextChoices):
@@ -54,6 +73,9 @@ class Project(models.Model):
     irrigation_system = models.ForeignKey(IrrigationSystem, on_delete=models.PROTECT, related_name='projects')
     category = models.ForeignKey(ProjectCategory, on_delete=models.PROTECT, related_name='projects')
     financing_source = models.ForeignKey(FinancingSource, on_delete=models.PROTECT, related_name='projects')
+    program = models.ForeignKey(
+        'Program', on_delete=models.SET_NULL, null=True, blank=True, related_name='projects'
+    )
 
     crops = models.ManyToManyField(Crop, through='ProjectCrop', related_name='projects')
 
@@ -87,6 +109,45 @@ class Project(models.Model):
 
     def __str__(self):
         return f"{self.project_code} — {self.project_name}"
+
+    def measured_progress(self):
+        """
+        Live progress rolled up from this project's contracts — the
+        measured truth (BOQ quantities + certified IPCs) rather than the
+        denormalized status columns or manually reported records.
+
+        Physical % is weighted by contract current value so a bigger
+        contract counts more; financial % is total certified / total
+        current value. Returns Decimal-or-None per key so callers can
+        fall back to reported ProgressRecord data.
+        """
+        total_value = Decimal('0')
+        total_certified = Decimal('0')
+        weighted_phys = Decimal('0')
+        has_measured_phys = False
+
+        for c in self.contracts.all():
+            value = c.current_value() or Decimal('0')
+            total_value += value
+            total_certified += c.certified_total() or Decimal('0')
+            if c.boq_items.exists():
+                has_measured_phys = True
+                phys = sum(
+                    (i.physical_progress_pct for i in c.boq_items.all()),
+                    Decimal('0'),
+                )
+                weighted_phys += phys * value
+
+        return {
+            'physical': (
+                round(weighted_phys / total_value, 2)
+                if has_measured_phys and total_value else None
+            ),
+            'financial': (
+                round(total_certified / total_value * 100, 2)
+                if total_value else None
+            ),
+        }
 
 
 class ProjectCrop(models.Model):

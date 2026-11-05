@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'projects',
     'contracts',
     'monitoring',
+    'audit',
 ]
 
 AUTH_USER_MODEL = 'accounts.User'
@@ -74,7 +75,16 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
 
+AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+]
+
 STATIC_URL = 'static/'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'accounts.User'
 REST_FRAMEWORK = {

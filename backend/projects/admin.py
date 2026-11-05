@@ -1,6 +1,7 @@
 from django.contrib import admin
-from .models import Project, ProjectCrop, MilestoneType, ProjectMilestone
+from .models import Program, Project, ProjectCrop, MilestoneType, ProjectMilestone
 
+admin.site.register(Program)
 admin.site.register(Project)
 admin.site.register(ProjectCrop)
 admin.site.register(MilestoneType)

@@ -22,6 +22,7 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
     projectCategories: [],
     financingSources: [],
     crops: [],
+    programs: [],
   })
 
   const [formData, setFormData] = useState({
@@ -37,6 +38,7 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
     irrigation_system: '',
     category: '',
     financing_source: '',
+    program: '',
     designed_irrigable_area_ha: '',
     target_beneficiaries_thh: '',
     target_beneficiaries_male: '',
@@ -62,6 +64,7 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
         irrigation_system: editingProject.irrigation_system || '',
         category: editingProject.category || '',
         financing_source: editingProject.financing_source || '',
+        program: editingProject.program || '',
         designed_irrigable_area_ha: editingProject.designed_irrigable_area_ha || '',
         target_beneficiaries_thh: editingProject.target_beneficiaries_thh || '',
         target_beneficiaries_male: editingProject.target_beneficiaries_male || '',
@@ -87,6 +90,7 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
         projectCatRes,
         financingRes,
         cropsRes,
+        programsRes,
       ] = await Promise.all([
         api.get('/geography/regions/'),
         api.get('/geography/zones/'),
@@ -99,6 +103,7 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
         api.get('/geography/project-categories/'),
         api.get('/geography/financing-sources/'),
         api.get('/geography/crops/'),
+        api.get('/projects/programs/'),
       ])
 
       setLookupData({
@@ -113,6 +118,7 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
         projectCategories: projectCatRes.data,
         financingSources: financingRes.data,
         crops: cropsRes.data,
+        programs: programsRes.data,
       })
     } catch (err) {
       console.error('Failed to load lookup data:', err)
@@ -121,6 +127,22 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    const { target_beneficiaries_thh, target_beneficiaries_male, target_beneficiaries_female } = formData
+    if (
+      target_beneficiaries_thh !== '' &&
+      target_beneficiaries_male !== '' &&
+      target_beneficiaries_female !== '' &&
+      Number(target_beneficiaries_thh) !==
+        Number(target_beneficiaries_male) + Number(target_beneficiaries_female)
+    ) {
+      alert(
+        'Target Beneficiaries (Households) must equal ' +
+        'Male Beneficiaries + Female Beneficiaries.'
+      )
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -172,7 +194,7 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
   const filteredKebeles = lookupData.kebeles.filter(k => k.woreda === parseInt(formData.woreda))
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 overflow-y-auto">
       <div className="min-h-screen flex items-start justify-center p-4 py-12">
         <Card className="w-full max-w-4xl">
         <CardHeader>
@@ -344,6 +366,16 @@ export default function ProjectForm({ onClose, onSuccess, editingProject = null 
                   <option value="">Select Financing Source</option>
                   {lookupData.financingSources.map((f) => (
                     <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </Select>
+                <Select
+                  label="Program (Optional)"
+                  value={formData.program}
+                  onChange={(e) => setFormData({ ...formData, program: e.target.value })}
+                >
+                  <option value="">No Program</option>
+                  {lookupData.programs.map((p) => (
+                    <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
                   ))}
                 </Select>
               </div>

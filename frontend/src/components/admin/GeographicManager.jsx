@@ -268,7 +268,7 @@ export default function GeographicManager() {
       </Card>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
           <Card className="w-full max-w-md">
             <CardHeader>
               <div className="flex justify-between items-center">

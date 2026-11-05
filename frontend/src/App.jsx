@@ -1,7 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
 import NationalDashboard from './pages/NationalDashboard'
 import Projects from './pages/Projects'
 import ProjectDetail from './pages/ProjectDetail'
@@ -12,6 +11,7 @@ import ContractDetail from './pages/ContractDetail'
 import Monitoring from './pages/Monitoring'
 import Alerts from './pages/Alerts'
 import Admin from './pages/Admin'
+import AuditLog from './pages/AuditLog'
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -28,21 +28,12 @@ function App() {
           element={
             <ProtectedRoute>
               <Layout>
-                <Dashboard />
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/national"
-          element={
-            <ProtectedRoute>
-              <Layout>
                 <NationalDashboard />
               </Layout>
             </ProtectedRoute>
           }
         />
+        <Route path="/national" element={<Navigate to="/" replace />} />
         <Route
           path="/projects"
           element={
@@ -129,6 +120,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Admin />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/audit"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <AuditLog />
               </Layout>
             </ProtectedRoute>
           }

@@ -25,7 +25,11 @@ class MonitoringScopedPermission(permissions.BasePermission):
 
 
 class AlertPermission(permissions.BasePermission):
-    """Alerts are written by the scheduled job (admin identity) — everyone else reads only."""
+    """
+    Alerts are created/deleted by the scheduled job (admin identity).
+    Any authenticated manager can PATCH status (acknowledge / resolve).
+    national_viewer is read-only.
+    """
 
     def has_permission(self, request, view):
         user = request.user
@@ -33,6 +37,8 @@ class AlertPermission(permissions.BasePermission):
             return False
         if request.method in permissions.SAFE_METHODS:
             return True
+        if request.method == 'PATCH':
+            return user.role in ('admin', 'regional_manager')
         return user.role == 'admin'
 
     def has_object_permission(self, request, view, obj):
@@ -41,4 +47,10 @@ class AlertPermission(permissions.BasePermission):
             if user.role == 'regional_manager':
                 return obj.project.region_id == user.region_id
             return True
+        if request.method == 'PATCH':
+            if user.role == 'admin':
+                return True
+            if user.role == 'regional_manager':
+                return obj.project.region_id == user.region_id
+            return False
         return user.role == 'admin'

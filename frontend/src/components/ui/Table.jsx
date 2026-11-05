@@ -28,6 +28,6 @@ export function TableHead({ children, className = '' }) {
   )
 }
 
-export function TableCell({ children, className = '' }) {
-  return <td className={`px-6 py-4 text-sm text-slate-900 ${className}`}>{children}</td>
+export function TableCell({ children, className = '', ...props }) {
+  return <td className={`px-6 py-4 text-sm text-slate-900 ${className}`} {...props}>{children}</td>
 }

@@ -31,10 +31,13 @@ class ContractScopedPermission(permissions.BasePermission):
         if user.role == 'admin':
             return True
 
-        # obj is a Contract, or something with a .contract (VO/EoT/IPC/Claim)
+        # obj is a Contract, or something with a .contract (VO/EoT/IPC/Claim/BOQSection/BOQItem)
+        # or something with a .boq_item (PhysicalProgress/IPCLineItem)
         project_region_id = getattr(obj, 'project', None) and obj.project.region_id
         if project_region_id is None and hasattr(obj, 'contract'):
             project_region_id = obj.contract.project.region_id
+        if project_region_id is None and hasattr(obj, 'boq_item'):
+            project_region_id = obj.boq_item.contract.project.region_id
 
         if user.role == 'regional_manager':
             return project_region_id == user.region_id

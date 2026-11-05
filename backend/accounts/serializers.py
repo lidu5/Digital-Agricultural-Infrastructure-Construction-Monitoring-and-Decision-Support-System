@@ -1,3 +1,5 @@
+from django.contrib.auth import password_validation
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from .models import User, Organization
 
@@ -24,6 +26,18 @@ class UserSerializer(serializers.ModelSerializer):
             'is_active', 'password', 'created_at', 'updated_at',
         ]
         read_only_fields = ['user_id', 'created_at', 'updated_at', 'region_name']
+
+    def validate_password(self, value):
+        try:
+            password_validation.validate_password(value, user=self.instance)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(list(exc.messages))
+        return value
+
+    def validate(self, attrs):
+        if self.instance is None and not attrs.get('password'):
+            raise serializers.ValidationError({'password': 'This field is required.'})
+        return attrs
 
     def create(self, validated_data):
         password = validated_data.pop('password')

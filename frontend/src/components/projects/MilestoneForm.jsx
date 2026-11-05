@@ -88,7 +88,7 @@ export default function MilestoneForm({ project, onClose, onSuccess, editingMile
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 overflow-y-auto">
       <div className="min-h-screen flex items-start justify-center p-4 py-12">
         <Card className="w-full max-w-2xl">
           <CardHeader>

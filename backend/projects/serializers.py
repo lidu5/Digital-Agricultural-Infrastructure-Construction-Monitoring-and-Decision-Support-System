@@ -1,6 +1,17 @@
 from rest_framework import serializers
 from django.contrib.gis.geos import Point
-from .models import Project, ProjectMilestone, MilestoneType
+from .models import Program, Project, ProjectMilestone, MilestoneType
+
+
+class ProgramSerializer(serializers.ModelSerializer):
+    project_count = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Program
+        fields = '__all__'
+
+    def get_project_count(self, obj):
+        return obj.projects.count()
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -20,11 +31,35 @@ class ProjectSerializer(serializers.ModelSerializer):
     irrigation_system_name = serializers.CharField(source='irrigation_system.name', read_only=True)
     category_name = serializers.CharField(source='category.name', read_only=True)
     financing_source_name = serializers.CharField(source='financing_source.name', read_only=True)
+    program_name = serializers.CharField(source='program.name', read_only=True, default='')
 
     class Meta:
         model = Project
         fields = '__all__'
         read_only_fields = ['project_id', 'created_at', 'updated_at', 'gps_location']
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        fields = (
+            'target_beneficiaries_thh',
+            'target_beneficiaries_male',
+            'target_beneficiaries_female',
+        )
+        values = {
+            f: attrs[f] if f in attrs else getattr(self.instance, f, None)
+            for f in fields
+        }
+        if all(v is not None for v in values.values()):
+            total = values['target_beneficiaries_male'] + values['target_beneficiaries_female']
+            if values['target_beneficiaries_thh'] != total:
+                raise serializers.ValidationError({
+                    'target_beneficiaries_thh': (
+                        'Target Beneficiaries (Households) must equal '
+                        'Male Beneficiaries + Female Beneficiaries '
+                        f'({total}).'
+                    )
+                })
+        return attrs
 
     def create(self, validated_data):
         lat = validated_data.pop('latitude', None)
@@ -54,6 +89,25 @@ class ProjectSerializer(serializers.ModelSerializer):
         else:
             representation['latitude'] = None
             representation['longitude'] = None
+
+        # Report live progress per field: measured contract data (BOQ
+        # quantities + certified IPCs) is the source of truth, the latest
+        # ProgressRecord is the fallback for projects without measurable
+        # contract data, and the denormalized columns are the last resort.
+        measured = instance.measured_progress()
+        latest = None
+        if measured['physical'] is None or measured['financial'] is None:
+            latest = instance.progress_records.order_by('-record_date').first()
+
+        if measured['physical'] is not None:
+            representation['physical_status_pct'] = float(measured['physical'])
+        elif latest:
+            representation['physical_status_pct'] = float(latest.physical_progress_pct)
+
+        if measured['financial'] is not None:
+            representation['financial_status_pct'] = float(measured['financial'])
+        elif latest:
+            representation['financial_status_pct'] = float(latest.financial_progress_pct)
         return representation
 
 class MilestoneTypeSerializer(serializers.ModelSerializer):

@@ -31,21 +31,23 @@ const contractDefaults = (contract, recordDate) => {
   }
 }
 
-export default function ProgressRecordForm({ project, onClose, onSuccess }) {
+export default function ProgressRecordForm({ project, onClose, onSuccess, editingRecord = null }) {
   const { user } = useAuth()
   const [loading, setLoading] = useState(false)
   const [contracts, setContracts] = useState([])
 
+  const fromRecord = (name) => editingRecord?.[name] ?? ''
+
   const [formData, setFormData] = useState({
     project: project.project_id,
-    contract: '',
-    record_date: new Date().toISOString().split('T')[0],
-    actual_quantity_completed: '',
-    total_contract_quantity: '',
-    certified_amount: '',
-    contract_amount_snapshot: '',
-    elapsed_duration_days: '',
-    total_duration_days: '',
+    contract: fromRecord('contract'),
+    record_date: editingRecord?.record_date || new Date().toISOString().split('T')[0],
+    actual_quantity_completed: fromRecord('actual_quantity_completed'),
+    total_contract_quantity: fromRecord('total_contract_quantity'),
+    certified_amount: fromRecord('certified_amount'),
+    contract_amount_snapshot: fromRecord('contract_amount_snapshot'),
+    elapsed_duration_days: fromRecord('elapsed_duration_days'),
+    total_duration_days: fromRecord('total_duration_days'),
   })
 
   useEffect(() => {
@@ -57,8 +59,8 @@ export default function ProgressRecordForm({ project, onClose, onSuccess }) {
       const res = await api.get(`/contracts/contracts/?project=${project.project_id}`)
       setContracts(res.data)
       
-      // Auto-select first contract if available
-      if (res.data.length > 0) {
+      // Auto-select first contract if available (new records only)
+      if (!editingRecord && res.data.length > 0) {
         const contract = res.data[0]
         setFormData(prev => ({
           ...prev,
@@ -112,10 +114,12 @@ export default function ProgressRecordForm({ project, onClose, onSuccess }) {
         }
       })
 
-      // Add recorded_by
-      payload.recorded_by = user.user_id
-
-      await api.post('/monitoring/progress-records/', payload)
+      if (editingRecord) {
+        await api.patch(`/monitoring/progress-records/${editingRecord.record_id}/`, payload)
+      } else {
+        payload.recorded_by = user.user_id
+        await api.post('/monitoring/progress-records/', payload)
+      }
       
       onSuccess()
       onClose()
@@ -154,18 +158,20 @@ export default function ProgressRecordForm({ project, onClose, onSuccess }) {
     ? ((parseFloat(formData.elapsed_duration_days) / parseFloat(formData.total_duration_days)) * 100).toFixed(2)
     : 0
 
-  // Once a contract is picked, its quantity/amount are the source of truth —
-  // only allow manual entry when there's no contract to snapshot from.
+  // Once a contract is picked, the backend rolls progress up from measured
+  // contract data (BOQ quantities, certified IPCs, contract dates) — manual
+  // entry only applies when there is no contract.
   const hasContract = Boolean(formData.contract)
+  const selectedContract = contracts.find((c) => c.contract_id === formData.contract)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 overflow-y-auto">
       <div className="min-h-screen flex items-start justify-center p-4 py-12">
         <Card className="w-full max-w-3xl">
           <CardHeader>
             <div className="flex justify-between items-center">
               <div>
-                <CardTitle>Add Progress Record</CardTitle>
+                <CardTitle>{editingRecord ? 'Edit Progress Record' : 'Add Progress Record'}</CardTitle>
                 <p className="text-sm text-slate-600 mt-1">
                   {project.project_code} - {project.project_name}
                 </p>
@@ -208,6 +214,68 @@ export default function ProgressRecordForm({ project, onClose, onSuccess }) {
                 </div>
               </div>
 
+              {/* Contract-linked record: show measured snapshot, hide manual inputs */}
+              {hasContract && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Progress Snapshot</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                      <div className="text-xs font-medium text-emerald-700">Physical (measured)</div>
+                      <div className="text-xl font-extrabold text-emerald-800 mt-1">
+                        {Number(selectedContract?.physical_progress_pct || 0).toFixed(2)}%
+                      </div>
+                      <div className="text-[11px] text-emerald-700/70 mt-1">From BOQ item quantities</div>
+                    </div>
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                      <div className="text-xs font-medium text-blue-700">Financial (certified)</div>
+                      <div className="text-xl font-extrabold text-blue-800 mt-1">
+                        {Number(selectedContract?.financial_progress_pct || 0).toFixed(2)}%
+                      </div>
+                      <div className="text-[11px] text-blue-700/70 mt-1">From certified IPCs</div>
+                    </div>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                      <div className="text-xs font-medium text-amber-700">Time elapsed</div>
+                      <div className="text-xl font-extrabold text-amber-800 mt-1">{timePct}%</div>
+                      <div className="text-[11px] text-amber-700/70 mt-1">
+                        {formData.elapsed_duration_days || 0} of {formData.total_duration_days || '—'} days
+                      </div>
+                    </div>
+                  </div>
+                  {selectedContract && !selectedContract.has_boq_items && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-2">
+                      <p className="text-xs text-slate-600">
+                        This contract has no BOQ items, so physical progress can't be measured automatically —
+                        enter the completed quantity below.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="Actual Quantity Completed"
+                          type="number"
+                          step="0.01"
+                          value={formData.actual_quantity_completed}
+                          onChange={(e) => setFormData({ ...formData, actual_quantity_completed: e.target.value })}
+                          placeholder="e.g., 1500.00"
+                        />
+                        <Input
+                          label="Total Contract Quantity"
+                          type="number"
+                          step="0.01"
+                          value={formData.total_contract_quantity}
+                          disabled
+                          className="bg-slate-100 text-slate-500 cursor-not-allowed"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500">
+                    Values are computed from this contract's BOQ measurements, certified IPCs and contract dates —
+                    manual fields are hidden. Choose "No Contract" to enter values manually.
+                  </p>
+                </div>
+              )}
+
+              {!hasContract && (
+              <>
               {/* Physical Progress */}
               <div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Physical Progress</h3>
@@ -303,6 +371,8 @@ export default function ProgressRecordForm({ project, onClose, onSuccess }) {
                   </div>
                 )}
               </div>
+              </>
+              )}
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
@@ -312,7 +382,7 @@ export default function ProgressRecordForm({ project, onClose, onSuccess }) {
 
               <div className="flex gap-3 pt-4">
                 <Button type="submit" disabled={loading} className="flex-1">
-                  {loading ? 'Saving...' : 'Save Progress Record'}
+                  {loading ? 'Saving...' : (editingRecord ? 'Update Progress Record' : 'Save Progress Record')}
                 </Button>
                 <Button type="button" variant="outline" onClick={onClose} className="flex-1">
                   Cancel

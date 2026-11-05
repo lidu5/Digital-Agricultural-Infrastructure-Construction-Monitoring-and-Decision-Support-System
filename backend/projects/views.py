@@ -1,11 +1,18 @@
 from rest_framework import viewsets, permissions
 from rest_framework.exceptions import PermissionDenied
-from .models import Project, ProjectMilestone, MilestoneType
-from .serializers import ProjectSerializer, ProjectMilestoneSerializer, MilestoneTypeSerializer
-from .permissions import ProjectPermission
+from audit.mixins import AuditLogMixin, AuditAction, _snapshot, _write_log
+from .models import Program, Project, ProjectMilestone, MilestoneType
+from .serializers import ProgramSerializer, ProjectSerializer, ProjectMilestoneSerializer, MilestoneTypeSerializer
+from .permissions import ProgramPermission, ProjectPermission
 
 
-class ProjectViewSet(viewsets.ModelViewSet):
+class ProgramViewSet(AuditLogMixin, viewsets.ModelViewSet):
+    queryset = Program.objects.all()
+    serializer_class = ProgramSerializer
+    permission_classes = [ProgramPermission]
+
+
+class ProjectViewSet(AuditLogMixin, viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
     permission_classes = [ProjectPermission]
 
@@ -13,17 +20,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = Project.objects.all()
         if user.role == 'regional_manager':
-            return qs.filter(region=user.region)
-        return qs  # admin and national_viewer see everything
+            qs = qs.filter(region=user.region)
+        params = self.request.query_params
+        if params.get('region'):
+            qs = qs.filter(region_id=params['region'])
+        if params.get('program'):
+            qs = qs.filter(program_id=params['program'])
+        if params.get('status'):
+            qs = qs.filter(overall_status_flag=params['status'])
+        return qs
 
     def perform_create(self, serializer):
         user = self.request.user
         if user.role == 'regional_manager':
-            # Force the new project into the manager's own region,
-            # regardless of what region was sent in the request body.
-            serializer.save(region=user.region)
+            instance = serializer.save(region=user.region)
         else:
-            serializer.save()
+            instance = serializer.save()
+        _write_log(self.request, AuditAction.CREATE, instance, _snapshot(instance))
 
     def partial_update(self, request, *args, **kwargs):
         user = request.user
@@ -37,13 +50,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return super().partial_update(request, *args, **kwargs)
 
 
-class MilestoneTypeViewSet(viewsets.ModelViewSet):
+class MilestoneTypeViewSet(AuditLogMixin, viewsets.ModelViewSet):
     queryset = MilestoneType.objects.all()
     serializer_class = MilestoneTypeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
-class ProjectMilestoneViewSet(viewsets.ModelViewSet):
+class ProjectMilestoneViewSet(AuditLogMixin, viewsets.ModelViewSet):
     serializer_class = ProjectMilestoneSerializer
     permission_classes = [permissions.IsAuthenticated]
 

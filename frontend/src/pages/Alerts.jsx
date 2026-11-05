@@ -10,6 +10,7 @@ export default function Alerts() {
   const [alerts, setAlerts] = useState([])
   const [filteredAlerts, setFilteredAlerts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(null)
   const [filters, setFilters] = useState({
     severity: '',
     status: '',
@@ -24,6 +25,18 @@ export default function Alerts() {
       .catch((err) => console.error(err))
       .finally(() => setLoading(false))
   }, [])
+
+  const updateStatus = async (alertId, newStatus) => {
+    setActionLoading(alertId + newStatus)
+    try {
+      const res = await api.patch(`/monitoring/alerts/${alertId}/`, { status: newStatus })
+      setAlerts((prev) => prev.map((a) => a.alert_id === alertId ? { ...a, ...res.data } : a))
+    } catch (err) {
+      console.error('Failed to update alert:', err)
+    } finally {
+      setActionLoading(null)
+    }
+  }
 
   useEffect(() => {
     let filtered = alerts
@@ -173,19 +186,44 @@ export default function Alerts() {
                     </span>
                   </div>
                   <p className="text-sm text-slate-900 mb-2">{alert.details}</p>
-                  <div className="flex items-center gap-4 text-sm text-slate-600">
-                    <div>
-                      <span className="font-medium">Project:</span> {alert.project_code || alert.project}
-                    </div>
-                    {alert.contract_number && (
+                  <div className="flex items-center justify-between gap-4 mt-2">
+                    <div className="flex items-center gap-4 text-sm text-slate-600">
                       <div>
-                        <span className="font-medium">Contract:</span> {alert.contract_number}
+                        <span className="font-medium">Project:</span> {alert.project_name || alert.project_code || alert.project}
                       </div>
-                    )}
-                    {alert.resolved_date && (
-                      <div>
-                        <span className="font-medium">Resolved:</span>{' '}
-                        {new Date(alert.resolved_date).toLocaleDateString()}
+                      {alert.contract_number && (
+                        <div>
+                          <span className="font-medium">Contract:</span> {alert.contract_number}
+                        </div>
+                      )}
+                      {alert.resolved_date && (
+                        <div>
+                          <span className="font-medium">Resolved:</span>{' '}
+                          {new Date(alert.resolved_date).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                    {alert.status !== 'resolved' && (
+                      <div className="flex gap-2 shrink-0">
+                        {alert.status === 'open' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={actionLoading !== null}
+                            onClick={() => updateStatus(alert.alert_id, 'acknowledged')}
+                          >
+                            {actionLoading === alert.alert_id + 'acknowledged' ? '...' : 'Acknowledge'}
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={actionLoading !== null}
+                          onClick={() => updateStatus(alert.alert_id, 'resolved')}
+                          className="text-green-700 border-green-300 hover:bg-green-50"
+                        >
+                          {actionLoading === alert.alert_id + 'resolved' ? '...' : 'Resolve'}
+                        </Button>
                       </div>
                     )}
                   </div>

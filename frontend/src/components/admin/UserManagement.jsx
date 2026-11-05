@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, Trash2, X } from 'lucide-react'
+import { Plus, Edit2, Trash2, X, Eye, EyeOff } from 'lucide-react'
 import api from '../../api'
 import Card, { CardContent, CardHeader, CardTitle } from '../ui/Card'
 import Table, { TableHeader, TableBody, TableRow, TableHead, TableCell } from '../ui/Table'
@@ -7,7 +7,37 @@ import Badge from '../ui/Badge'
 import Button from '../ui/Button'
 import Input, { Select } from '../ui/Input'
 
+const MIN_PASSWORD_LENGTH = 8
+
+const STRENGTH_LEVELS = [
+  { label: 'Too short', color: 'bg-red-500', text: 'text-red-600' },
+  { label: 'Weak', color: 'bg-red-500', text: 'text-red-600' },
+  { label: 'Fair', color: 'bg-yellow-500', text: 'text-yellow-600' },
+  { label: 'Good', color: 'bg-green-500', text: 'text-green-600' },
+  { label: 'Strong', color: 'bg-green-600', text: 'text-green-700' },
+]
+
+function getPasswordStrength(pw) {
+  if (pw.length < MIN_PASSWORD_LENGTH) return 0
+  let score = 1
+  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++
+  if (/\d/.test(pw)) score++
+  if (/[^A-Za-z0-9]/.test(pw) || pw.length >= 12) score++
+  return score
+}
+
+function formatApiError(data) {
+  if (!data) return 'Unknown error'
+  if (typeof data === 'string') return data
+  if (data.detail) return data.detail
+  return Object.entries(data)
+    .map(([field, msgs]) => `${field}: ${[].concat(msgs).join(' ')}`)
+    .join('\n')
+}
+
 export default function UserManagement() {
+  const [showPassword, setShowPassword] = useState(false)
+  const [formError, setFormError] = useState('')
   const [users, setUsers] = useState([])
   const [regions, setRegions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -50,8 +80,12 @@ export default function UserManagement() {
     
     if (!payload.password) {
       delete payload.password
+    } else if (payload.password.length < MIN_PASSWORD_LENGTH) {
+      setFormError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`)
+      return
     }
 
+    setFormError('')
     const request = editingUser
       ? api.put(`/accounts/users/${editingUser.user_id}/`, payload)
       : api.post('/accounts/users/', payload)
@@ -63,7 +97,7 @@ export default function UserManagement() {
       })
       .catch((err) => {
         console.error(err)
-        alert('Failed to save user: ' + (err.response?.data?.detail || 'Unknown error'))
+        setFormError(formatApiError(err.response?.data))
       })
   }
 
@@ -79,6 +113,8 @@ export default function UserManagement() {
   }
 
   const handleEdit = (user) => {
+    setFormError('')
+    setShowPassword(false)
     setEditingUser(user)
     setFormData({
       full_name: user.full_name,
@@ -93,6 +129,8 @@ export default function UserManagement() {
 
   const handleCloseModal = () => {
     setShowModal(false)
+    setShowPassword(false)
+    setFormError('')
     setEditingUser(null)
     setFormData({
       full_name: '',
@@ -182,7 +220,7 @@ export default function UserManagement() {
       </Card>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50">
           <Card className="w-full max-w-md">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -230,13 +268,55 @@ export default function UserManagement() {
                     ))}
                   </Select>
                 )}
-                <Input
-                  label={editingUser ? 'Password (leave blank to keep current)' : 'Password'}
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required={!editingUser}
-                />
+                <div className="w-full">
+                  <label htmlFor="user-password" className="block text-sm font-medium text-slate-700 mb-1">
+                    {editingUser ? 'Password (leave blank to keep current)' : 'Password'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="user-password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      required={!editingUser}
+                      minLength={MIN_PASSWORD_LENGTH}
+                      autoComplete="new-password"
+                      className="w-full px-3 py-2 pr-10 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                      className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-700"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {formData.password ? (
+                    <div className="mt-2">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4].map((i) => (
+                          <div
+                            key={i}
+                            className={`h-1 flex-1 rounded-full ${
+                              i <= getPasswordStrength(formData.password)
+                                ? STRENGTH_LEVELS[getPasswordStrength(formData.password)].color
+                                : 'bg-slate-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className={`mt-1 text-xs ${STRENGTH_LEVELS[getPasswordStrength(formData.password)].text}`}>
+                        {STRENGTH_LEVELS[getPasswordStrength(formData.password)].label}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-xs text-slate-500">
+                      At least {MIN_PASSWORD_LENGTH} characters. Avoid common or all-numeric passwords.
+                    </p>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -249,6 +329,11 @@ export default function UserManagement() {
                     Active
                   </label>
                 </div>
+                {formError && (
+                  <div role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2 whitespace-pre-line">
+                    {formError}
+                  </div>
+                )}
                 <div className="flex gap-2 pt-4">
                   <Button type="submit" className="flex-1">
                     {editingUser ? 'Update' : 'Create'}
