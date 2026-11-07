@@ -93,3 +93,5 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.BasicAuthentication',  # keep for Postman testing
     ],
 }
+
+

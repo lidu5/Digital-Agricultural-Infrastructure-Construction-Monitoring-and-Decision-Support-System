@@ -9,10 +9,15 @@ consultant orgs).
 
 import uuid
 from decimal import Decimal
+from django.core.validators import FileExtensionValidator
 from django.db import models
 
 from projects.models import Project
 from accounts.models import Organization, OrganizationType, User
+
+
+# Allowed file types for uploaded claim letters
+letter_validator = FileExtensionValidator(allowed_extensions=['pdf', 'jpg', 'jpeg', 'png'])
 
 
 class ContractStatus(models.TextChoices):
@@ -134,8 +139,12 @@ class VariationOrder(models.Model):
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name='variation_orders')
     vo_number = models.CharField(max_length=20)  # VO1, VO2, ...
     value = models.DecimalField(max_digits=16, decimal_places=2)
+    requested_date = models.DateField(null=True, blank=True)
     approved_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
+    letter = models.FileField(
+        upload_to='variation_orders/letters/', null=True, blank=True, validators=[letter_validator]
+    )
 
     class Meta:
         unique_together = ('contract', 'vo_number')
@@ -149,8 +158,12 @@ class ExtensionOfTime(models.Model):
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name='extensions_of_time')
     eot_number = models.CharField(max_length=20)  # EoT1, EoT2, ...
     approved_days = models.PositiveIntegerField()
+    requested_date = models.DateField(null=True, blank=True)
     approved_date = models.DateField(null=True, blank=True)
     reason = models.TextField(blank=True)
+    letter = models.FileField(
+        upload_to='extensions_of_time/letters/', null=True, blank=True, validators=[letter_validator]
+    )
 
     class Meta:
         unique_together = ('contract', 'eot_number')
@@ -189,13 +202,18 @@ class ClaimStatus(models.TextChoices):
 class Claim(models.Model):
     claim_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     contract = models.ForeignKey(Contract, on_delete=models.CASCADE, related_name='claims')
-    requested_date = models.DateField(null=True, blank=True)
+    requested_date = models.DateField(null=True, blank=True)  # renamed from claim_date
     approved_date = models.DateField(null=True, blank=True)
     claim_amount = models.DecimalField(max_digits=16, decimal_places=2)
     description = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=ClaimStatus.choices, default=ClaimStatus.OPEN)
-    request_letter = models.FileField(upload_to='claims/request_letters/', null=True, blank=True)
-    approval_letter = models.FileField(upload_to='claims/approval_letters/', null=True, blank=True)
+
+    request_letter = models.FileField(
+        upload_to='claims/request_letters/', null=True, blank=True, validators=[letter_validator]
+    )
+    approval_letter = models.FileField(
+        upload_to='claims/approval_letters/', null=True, blank=True, validators=[letter_validator]
+    )
 
     def __str__(self):
         return f"{self.contract.contract_number} — claim {self.claim_id}"
